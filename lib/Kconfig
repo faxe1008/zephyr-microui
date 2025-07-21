@@ -1,0 +1,65 @@
+# Copyright (c) 2025, Fabian Blatz <fabianblatz@gmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
+config MICROUI
+    bool "Enable MicroUI"
+
+if MICROUI
+
+config MICROUI_INPUT
+    bool "Enable MicroUI input support"
+    depends on INPUT
+    default y
+    help
+      Enable support for MicroUI input devices. This allows the use of
+      various input methods such as touchscreens.
+
+config MICROUI_INPUT_MSGQ_SIZE
+    int "Size of MicroUI input msgq"
+    depends on MICROUI_INPUT
+    default 12
+    help
+      Set the number of retained messages on microui input queue.
+
+config MICROUI_TEXT_UTF8
+    bool "Enable MicroUI UTF-8 text support"
+    default y
+    help
+      Enable support for UTF-8 encoded text in MicroUI. This allows the display
+      of a wide range of characters and symbols.
+
+config MICROUI_BITS_PER_PIXEL
+    int "MicroUI bits per pixel"
+    default 16
+    range 1 32
+    help
+      Set the number of bits per pixel for MicroUI. This determines the color depth
+      of the display. A value of 16 is common for many displays, while higher values
+      can provide better color fidelity at the cost of increased memory usage.
+
+config MICROUI_DISPLAY_REFRESH_PERIOD
+    int "MicroUI display refresh period"
+    default 16
+    range 1 1000
+    help
+      Set the display refresh period in milliseconds. This determines how often the
+      display is updated with new content. A lower value results in smoother animations
+      but may increase power consumption.
+
+config MICROUI_EVENT_LOOP_THREAD_PRIORITY
+    int "MicroUI event loop thread priority"
+    default 0
+    help
+      Set the priority of the MicroUI event loop thread. This determines how the
+      event loop interacts with other threads in the system. A higher priority means
+      that the event loop will be more responsive to input events.
+
+config MICROUI_EVENT_LOOP_STACK_SIZE
+    int "MicroUI event loop stack size"
+    default 4096
+    help
+      Set the stack size for the MicroUI event loop thread. This should be large enough
+      to handle the expected workload of the event loop, including processing input events
+      and updating the display.
+
+endif
