@@ -1,0 +1,22 @@
+# Copyright (c) 2025, Fabian Blatz <fabianblatz@gmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
+if MICROUI
+
+config MICROUI_INPUT
+    bool "Enable MicroUI input support"
+    depends on INPUT
+    help
+      Enable support for MicroUI input devices. This allows the use of
+      various input methods such as touchscreens.
+
+config MICROUI_BITS_PER_PIXEL
+    int "MicroUI bits per pixel"
+    default 16
+    range 1 32
+    help
+      Set the number of bits per pixel for MicroUI. This determines the color depth
+      of the display. A value of 16 is common for many displays, while higher values
+      can provide better color fidelity at the cost of increased memory usage.
+
+endif
