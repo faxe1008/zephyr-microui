@@ -36,9 +36,9 @@ static __always_inline uint8_t luminance(mu_Color color)
 	return (299 * color.r + 587 * color.g + 114 * color.b) / 1000;
 }
 
-static __always_inline color_to_pixel(mu_Color color)
+static __always_inline uint32_t color_to_pixel(mu_Color color)
 {
-	switch (caps.current_pixel_format) {
+	switch (display_caps.current_pixel_format) {
 	case PIXEL_FORMAT_RGB_888:
 		return (color.r << 16) | (color.g << 8) | color.b;
 
@@ -54,7 +54,7 @@ static __always_inline color_to_pixel(mu_Color color)
 	case PIXEL_FORMAT_MONO01:
 	case PIXEL_FORMAT_MONO10: {
 		uint8_t luma = luminance(color);
-		if (caps.current_pixel_format == PIXEL_FORMAT_MONO01) {
+		if (display_caps.current_pixel_format == PIXEL_FORMAT_MONO01) {
 			return (luma > 127) ? 1 : 0;
 		} else {
 			return (luma > 127) ? 0 : 1;
@@ -87,7 +87,7 @@ static void set_pixel(int x, int y, mu_Color color)
 
 	uint32_t pixel = color_to_pixel(color);
 
-	switch (caps.current_pixel_format) {
+	switch (display_caps.current_pixel_format) {
 	case PIXEL_FORMAT_RGB_888: {
 		int index = (y * DISPLAY_WIDTH + x) * 3;
 		display_buffer[index + 0] = (pixel >> 16) & 0xFF; // R
@@ -183,12 +183,6 @@ void r_init(void)
 	}
 
 	display_get_capabilities(display_dev, &display_caps);
-	if (display_caps.width != DISPLAY_WIDTH || display_caps.height != DISPLAY_HEIGHT) {
-		LOG_ERR("Display size mismatch: expected %dx%d, got %dx%d", DISPLAY_WIDTH,
-			DISPLAY_HEIGHT, display_caps.width, display_caps.height);
-		return;
-	}
-
 	display_blanking_off(display_dev);
 
 	clip_rect.x = 0;
@@ -238,6 +232,8 @@ int r_get_text_width(mu_Font f, const char *text, int len)
 	int width = 0;
 	int char_count = 0;
 	const struct Font *font = (const struct Font *)f;
+
+	if (len == -1) { len = strlen(text); }
 
 	while (char_count < len) {
 		const struct FontGlyph *glyph = find_glyph(font, (uint32_t)*text);

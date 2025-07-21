@@ -1,6 +1,8 @@
 #ifndef MICROUI_FONT_H
 #define MICROUI_FONT_H
 
+#include <stdint.h>
+
 struct Font {
 	uint32_t height;
 	uint32_t bitmap_width;
@@ -9,7 +11,7 @@ struct Font {
 	uint32_t last_char;
 	uint32_t default_width;
 	uint32_t char_spacing;
-	struct FontGlyph *glyphs;
+	const struct FontGlyph *glyphs;
 };
 
 struct FontGlyph {
