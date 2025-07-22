@@ -32,7 +32,6 @@ static __always_inline const struct FontGlyph *find_glyph(const struct Font *fon
 
 static __always_inline uint8_t luminance(mu_Color color)
 {
-	// Calculate luminance (0.299*R + 0.587*G + 0.114*B)
 	return (299 * color.r + 587 * color.g + 114 * color.b) / 1000;
 }
 
@@ -69,15 +68,12 @@ static __always_inline uint32_t color_to_pixel(mu_Color color)
 	return 0;
 }
 
-// Set a pixel in the display buffer
 static void set_pixel(int x, int y, mu_Color color)
 {
-	// Check display bounds
 	if (x < 0 || y < 0 || x >= DISPLAY_WIDTH || y >= DISPLAY_HEIGHT) {
 		return;
 	}
 
-	// Check clip rect
 	if (has_clip_rect) {
 		if (x < clip_rect.x || y < clip_rect.y || x >= clip_rect.x + clip_rect.w ||
 		    y >= clip_rect.y + clip_rect.h) {
@@ -115,14 +111,33 @@ static void set_pixel(int x, int y, mu_Color color)
 
 	case PIXEL_FORMAT_MONO01:
 	case PIXEL_FORMAT_MONO10: {
-		int index = y * ((DISPLAY_WIDTH + 7) / 8) + (x / 8);
-		uint8_t bit_pos = 7 - (x % 8);
-
+		uint8_t bit;
+		uint8_t *buf;
 		if (pixel) {
-			display_buffer[index] |= (1 << bit_pos);
-		} else {
-			display_buffer[index] &= ~(1 << bit_pos);
+			if (display_caps.screen_info & SCREEN_INFO_MONO_VTILED) {
+				buf = display_buffer + x + y / 8 * DISPLAY_WIDTH;
+
+				if (display_caps.screen_info & SCREEN_INFO_MONO_MSB_FIRST) {
+					bit = 7 - y % 8;
+				} else {
+					bit = y % 8;
+				}
+			} else {
+				buf = display_buffer + x / 8 + y * DISPLAY_WIDTH / 8;
+
+				if (display_caps.screen_info & SCREEN_INFO_MONO_MSB_FIRST) {
+					bit = 7 - x % 8;
+				} else {
+					bit = x % 8;
+				}
+			}
+			if (display_caps.current_pixel_format == PIXEL_FORMAT_MONO10) {
+				*buf |= BIT(bit);
+			} else {
+				*buf &= ~BIT(bit);
+			}
 		}
+
 		break;
 	}
 
@@ -141,7 +156,6 @@ static __always_inline void draw_char(char c, int x, int y, const struct Font *f
 	}
 
 	for (int row = 0; row < font->height; row++) {
-		// Handle different bitmap widths
 		if (font->bitmap_width <= 8) {
 			uint8_t row_data = glyph->bitmap[row];
 			for (int col = 0; col < glyph->width && col < font->bitmap_width; col++) {
@@ -157,7 +171,7 @@ static __always_inline void draw_char(char c, int x, int y, const struct Font *f
 					set_pixel(x + col, y + row, color);
 				}
 			}
-		} else { // font->bitmap_width <= 32
+		} else {
 			uint32_t row_data = (glyph->bitmap[row * 4] << 24) |
 					    (glyph->bitmap[row * 4 + 1] << 16) |
 					    (glyph->bitmap[row * 4 + 2] << 8) |
@@ -198,7 +212,6 @@ void r_init(void)
 
 void r_draw_rect(mu_Rect rect, mu_Color color)
 {
-	// Draw rectangle (filled)
 	for (int y = rect.y; y < rect.y + rect.h; y++) {
 		for (int x = rect.x; x < rect.x + rect.w; x++) {
 			set_pixel(x, y, color);
@@ -210,6 +223,11 @@ void r_draw_text(mu_Font f, const char *text, mu_Vec2 pos, mu_Color color)
 {
 	int x = pos.x;
 	const struct Font *font = (struct Font *)f;
+
+	if (!font) {
+		LOG_WRN_ONCE("Font is NULL, cannot draw text");
+		return;
+	}
 
 	while (*text) {
 		const struct FontGlyph *glyph = find_glyph(font, (uint32_t)*text);
@@ -233,7 +251,14 @@ int r_get_text_width(mu_Font f, const char *text, int len)
 	int char_count = 0;
 	const struct Font *font = (const struct Font *)f;
 
-	if (len == -1) { len = strlen(text); }
+	if (!font) {
+		LOG_WRN_ONCE("Font is NULL, returning width 0");
+		return 0;
+	}
+
+	if (len == -1) {
+		len = strlen(text);
+	}
 
 	while (char_count < len) {
 		const struct FontGlyph *glyph = find_glyph(font, (uint32_t)*text);
@@ -246,7 +271,6 @@ int r_get_text_width(mu_Font f, const char *text, int len)
 		text++;
 	}
 
-	// Add spacing between characters (but not after the last one)
 	if (char_count > 0) {
 		width += (char_count - 1) * font->char_spacing;
 	}
@@ -257,6 +281,10 @@ int r_get_text_width(mu_Font f, const char *text, int len)
 int r_get_text_height(mu_Font f)
 {
 	const struct Font *font = (const struct Font *)f;
+	if (!font) {
+		LOG_WRN_ONCE("Font is NULL, returning height 0");
+		return 0;
+	}
 	return font->height;
 }
 

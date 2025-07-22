@@ -1,5 +1,9 @@
-#ifndef MICROUI_FONT_H
-#define MICROUI_FONT_H
+#ifndef ZEPHYR_MODULES_MICROUI_FONT_H_
+#define ZEPHYR_MODULES_MICROUI_FONT_H_
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <stdint.h>
 
@@ -20,4 +24,15 @@ struct FontGlyph {
 	const uint8_t *bitmap;
 };
 
-#endif // MICROUI_FONT_H
+static inline void mu_set_font(mu_Context *ctx, struct Font* font)
+{
+    if (ctx) {
+        ctx->_style.font = (void*)font;
+    }
+}
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* ZEPHYR_MODULES_MICROUI_FONT_H_ */

@@ -246,7 +246,7 @@ int main(int argc, char **argv)
 	mu_init(ctx);
 	ctx->text_width = r_get_text_width;
 	ctx->text_height = r_get_text_height;
-	ctx->_style.font = (void*)&font;
+	mu_set_font(ctx, &font);
 
 	while (true) {
 		/* process frame */
@@ -258,7 +258,7 @@ int main(int argc, char **argv)
 		while (mu_next_command(ctx, &cmd)) {
 			switch (cmd->type) {
 			case MU_COMMAND_TEXT:
-				r_draw_text((void*)&font, cmd->text.str, cmd->text.pos, cmd->text.color);
+				r_draw_text(cmd->text.font, cmd->text.str, cmd->text.pos, cmd->text.color);
 				break;
 			case MU_COMMAND_RECT:
 				r_draw_rect(cmd->rect.rect, cmd->rect.color);
