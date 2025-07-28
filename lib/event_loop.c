@@ -2,11 +2,11 @@
 #include <zephyr/drivers/display.h>
 #include <string.h>
 
-#include <microui/renderer.h>
+#include <microui/event_loop.h>
 #include <microui/font.h>
 
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(microui_renderer, LOG_LEVEL_INF);
+LOG_MODULE_REGISTER(microui_event_loop, LOG_LEVEL_INF);
 
 #define DISPLAY_NODE   DT_CHOSEN(zephyr_display)
 #define DISPLAY_WIDTH  DT_PROP(DISPLAY_NODE, width)
@@ -18,9 +18,17 @@ static const struct device *display_dev = DEVICE_DT_GET(DISPLAY_NODE);
 static uint8_t display_buffer[DISPLAY_BUFFER_SIZE] __aligned(4);
 static struct display_capabilities display_caps;
 
+/* Microui Context */
+static mu_Context mu_ctx;
+static mu_Color bg_color = {90, 95, 100, 255};
+
 /* Clipping rectangle */
 static mu_Rect clip_rect = {0, 0, 0, 0};
 static bool has_clip_rect = false;
+
+/* Work queue and work queue thread */
+static struct k_work_q mu_work_queue;
+static K_KERNEL_STACK_DEFINE(mu_work_stack, CONFIG_MICROUI_EVENT_LOOP_STACK_SIZE);
 
 static __always_inline const struct FontGlyph *find_glyph(const struct Font *font, uint32_t unicode)
 {
@@ -185,11 +193,7 @@ static __always_inline void draw_char(char c, int x, int y, const struct Font *f
 	}
 }
 
-static void draw_icon_pattern(int id, mu_Rect rect, mu_Color color)
-{
-}
-
-void r_init(void)
+static void renderer_init(void)
 {
 	if (!device_is_ready(display_dev)) {
 		LOG_ERR("Display device is not ready");
@@ -210,7 +214,7 @@ void r_init(void)
 	LOG_INF("MicroUI renderer initialized for %dx%d display", DISPLAY_WIDTH, DISPLAY_HEIGHT);
 }
 
-void r_draw_rect(mu_Rect rect, mu_Color color)
+static void renderer_draw_rect(mu_Rect rect, mu_Color color)
 {
 	for (int y = rect.y; y < rect.y + rect.h; y++) {
 		for (int x = rect.x; x < rect.x + rect.w; x++) {
@@ -219,7 +223,7 @@ void r_draw_rect(mu_Rect rect, mu_Color color)
 	}
 }
 
-void r_draw_text(mu_Font f, const char *text, mu_Vec2 pos, mu_Color color)
+static void renderer_draw_text(mu_Font f, const char *text, mu_Vec2 pos, mu_Color color)
 {
 	int x = pos.x;
 	const struct Font *font = (struct Font *)f;
@@ -241,11 +245,11 @@ void r_draw_text(mu_Font f, const char *text, mu_Vec2 pos, mu_Color color)
 	}
 }
 
-void r_draw_icon(int id, mu_Rect rect, mu_Color color)
+static void renderer_draw_icon(int id, mu_Rect rect, mu_Color color)
 {
 }
 
-int r_get_text_width(mu_Font f, const char *text, int len)
+static int renderer_get_text_width(mu_Font f, const char *text, int len)
 {
 	int width = 0;
 	int char_count = 0;
@@ -278,7 +282,7 @@ int r_get_text_width(mu_Font f, const char *text, int len)
 	return width;
 }
 
-int r_get_text_height(mu_Font f)
+static int renderer_get_text_height(mu_Font f)
 {
 	const struct Font *font = (const struct Font *)f;
 	if (!font) {
@@ -288,7 +292,7 @@ int r_get_text_height(mu_Font f)
 	return font->height;
 }
 
-void r_set_clip_rect(mu_Rect rect)
+static void renderer_set_clip_rect(mu_Rect rect)
 {
 	clip_rect = rect;
 	has_clip_rect = true;
@@ -312,7 +316,7 @@ void r_set_clip_rect(mu_Rect rect)
 	}
 }
 
-void r_clear(mu_Color color)
+static void renderer_clear(mu_Color color)
 {
 	for (int y = 0; y < DISPLAY_HEIGHT; y++) {
 		for (int x = 0; x < DISPLAY_WIDTH; x++) {
@@ -321,7 +325,7 @@ void r_clear(mu_Color color)
 	}
 }
 
-void r_present(void)
+static void renderer_present(void)
 {
 	static struct display_buffer_descriptor desc = {
 		.buf_size = DISPLAY_BUFFER_SIZE,
@@ -332,3 +336,74 @@ void r_present(void)
 	};
 	display_write(display_dev, 0, 0, &desc, display_buffer);
 }
+
+void mu_set_bg_color(mu_Color color)
+{
+	bg_color = color;
+}
+
+mu_Context *mu_get_context(void)
+{
+	return &mu_ctx;
+}
+
+struct k_work_q *mu_get_work_queue(void)
+{
+	return &mu_work_queue;
+}
+
+static void microui_loop_work(struct k_work *work)
+{
+	int64_t current_time = k_uptime_get();
+
+	renderer_clear(bg_color);
+	mu_Command *cmd = NULL;
+	while (mu_next_command(&mu_ctx, &cmd)) {
+		switch (cmd->type) {
+		case MU_COMMAND_TEXT:
+			renderer_draw_text(cmd->text.font, cmd->text.str, cmd->text.pos,
+					   cmd->text.color);
+			break;
+		case MU_COMMAND_RECT:
+			renderer_draw_rect(cmd->rect.rect, cmd->rect.color);
+			break;
+		case MU_COMMAND_ICON:
+			renderer_draw_icon(cmd->icon.id, cmd->icon.rect, cmd->icon.color);
+			break;
+		case MU_COMMAND_CLIP:
+			renderer_set_clip_rect(cmd->clip.rect);
+			break;
+		}
+	}
+	renderer_present();
+
+	int64_t render_time = k_uptime_get() - current_time;
+	int64_t wait_time = CONFIG_MICROUI_DISPLAY_REFRESH_PERIOD - render_time;
+
+	if (wait_time < 0) {
+		wait_time = 0;
+	}
+
+	k_work_schedule_for_queue(&mu_work_queue, k_work_delayable_from_work(work),
+				  K_MSEC(wait_time));
+}
+
+static K_WORK_DELAYABLE_DEFINE(mu_loop_work, microui_loop_work);
+
+static int microui_init(void)
+{
+	renderer_init();
+
+	mu_init(&mu_ctx);
+	mu_ctx.text_width = renderer_get_text_width;
+	mu_ctx.text_height = renderer_get_text_height;
+
+	k_work_queue_init(&mu_work_queue);
+	k_work_queue_start(&mu_work_queue, mu_work_stack, K_KERNEL_STACK_SIZEOF(mu_work_stack),
+			   CONFIG_MICROUI_EVENT_LOOP_THREAD_PRIORITY, NULL);
+	k_work_submit_to_queue(&mu_work_queue, &mu_loop_work.work);
+
+	return 0;
+}
+
+SYS_INIT(microui_init, APPLICATION, CONFIG_APPLICATION_INIT_PRIORITY);

@@ -2,4 +2,5 @@
 # SPDX-License-Identifier: Apache-2.0
 
 zephyr_library()
-zephyr_library_sources(microui.c renderer.c)
+zephyr_library_sources(microui.c event_loop.c)
+zephyr_library_sources_ifdef(CONFIG_MICROUI_INPUT input.c)

@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <microui/renderer.h>
+#include <microui/event_loop.h>
 #include <microui/microui.h>
 #include <microui/font.h>
 #include <zephyr/kernel.h>
@@ -228,52 +228,31 @@ static void style_window(mu_Context *ctx)
 	}
 }
 
-static void process_frame(mu_Context *ctx)
+static void process_frame(struct k_work *work);
+static K_WORK_DELAYABLE_DEFINE(microui_work, process_frame);
+
+void process_frame(struct k_work *work)
 {
+	struct k_work_q *work_queue = mu_get_work_queue();
+	mu_Context *ctx = mu_get_context();
+
 	mu_begin(ctx);
 	style_window(ctx);
 	log_window(ctx);
 	test_window(ctx);
 	mu_end(ctx);
+
+	k_work_schedule_for_queue(work_queue, &microui_work, K_MSEC(1));
 }
 
 int main(int argc, char **argv)
 {
-	r_init();
+	mu_Context *ctx = mu_get_context();
+	struct k_work_q *work_queue = mu_get_work_queue();
 
-	/* init microui */
-	mu_Context *ctx = malloc(sizeof(mu_Context));
-	mu_init(ctx);
-	ctx->text_width = r_get_text_width;
-	ctx->text_height = r_get_text_height;
 	mu_set_font(ctx, &font);
 
-	while (true) {
-		/* process frame */
-		process_frame(ctx);
+	k_work_schedule_for_queue(work_queue, &microui_work, K_NO_WAIT);
 
-		/* render */
-		r_clear(mu_color(bg[0], bg[1], bg[2], 255));
-		mu_Command *cmd = NULL;
-		while (mu_next_command(ctx, &cmd)) {
-			switch (cmd->type) {
-			case MU_COMMAND_TEXT:
-				r_draw_text(cmd->text.font, cmd->text.str, cmd->text.pos, cmd->text.color);
-				break;
-			case MU_COMMAND_RECT:
-				r_draw_rect(cmd->rect.rect, cmd->rect.color);
-				break;
-			case MU_COMMAND_ICON:
-				r_draw_icon(cmd->icon.id, cmd->icon.rect, cmd->icon.color);
-				break;
-			case MU_COMMAND_CLIP:
-				r_set_clip_rect(cmd->clip.rect);
-				break;
-			}
-		}
-		r_present();
-
-		k_sleep(K_MSEC(10)); // Sleep for 16 ms to simulate ~60 FPS
-	}
 	return 0;
 }

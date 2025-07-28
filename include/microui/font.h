@@ -24,11 +24,11 @@ struct FontGlyph {
 	const uint8_t *bitmap;
 };
 
-static inline void mu_set_font(mu_Context *ctx, struct Font* font)
+static inline void mu_set_font(mu_Context *ctx, const struct Font *font)
 {
-    if (ctx) {
-        ctx->_style.font = (void*)font;
-    }
+	if (ctx) {
+		ctx->_style.font = (void *)font;
+	}
 }
 
 #ifdef __cplusplus
