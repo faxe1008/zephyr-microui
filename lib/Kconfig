@@ -14,6 +14,13 @@ config MICROUI_INPUT
       Enable support for MicroUI input devices. This allows the use of
       various input methods such as touchscreens.
 
+config MICROUI_TEXT_UTF8
+    bool "Enable MicroUI UTF-8 text support"
+    default y
+    help
+      Enable support for UTF-8 encoded text in MicroUI. This allows the display
+      of a wide range of characters and symbols.
+
 config MICROUI_BITS_PER_PIXEL
     int "MicroUI bits per pixel"
     default 16

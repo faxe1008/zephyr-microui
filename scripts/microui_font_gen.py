@@ -5,9 +5,8 @@ import math
 
 
 def parse_character_ranges(range_string):
-    """Parse character range string like '32-127,224,227-229' into list of character codes"""
     if not range_string:
-        return list(range(32, 128))  # Default range: 32-127
+        return list(range(32, 128))
 
     characters = set()
     parts = range_string.split(",")
@@ -43,30 +42,23 @@ def parse_character_ranges(range_string):
 
 
 def generate_font_data(ttf_path, font_size, output_path, character_codes=None):
-    """Generate C font data from a TTF file with variable width support"""
-
-    # Validate inputs
     if not os.path.isfile(ttf_path):
         raise FileNotFoundError(f"Font file not found: {ttf_path}")
 
     if font_size < 4 or font_size > 128:
         raise ValueError(f"Font size {font_size} out of range (4-128)")
 
-    # Use default character range if none provided
     if character_codes is None:
         character_codes = list(range(32, 128))
 
-    # Load the font
     try:
         font = ImageFont.truetype(ttf_path, font_size)
         print(f"Loaded font: {os.path.basename(ttf_path)} @ {font_size}px")
     except Exception as e:
         raise RuntimeError(f"Failed to load font: {e}")
 
-    # Measure font dimensions
     font_height, max_width, avg_width = measure_font_dimensions(font, character_codes)
 
-    # Determine bitmap width (round up to next power of 2, min 8, max 32)
     bitmap_width = max(8, min(32, 2 ** math.ceil(math.log2(max_width))))
     bytes_per_row = bitmap_width // 8
 
@@ -78,13 +70,11 @@ def generate_font_data(ttf_path, font_size, output_path, character_codes=None):
             f"Character range: {min(character_codes)}-{max(character_codes)} ({len(character_codes)} requested)"
         )
 
-    # Generate glyphs for specified character codes
     glyphs = generate_variable_width_glyphs(
         font, bitmap_width, font_height, character_codes
     )
     print(f"Generated {len(glyphs)} character glyphs")
 
-    # Write output file
     write_c_header(
         output_path,
         bitmap_width,
@@ -100,9 +90,6 @@ def generate_font_data(ttf_path, font_size, output_path, character_codes=None):
 
 
 def measure_font_dimensions(font, character_codes):
-    """Measure font dimensions for specified characters"""
-
-    # Create test image
     test_img = Image.new("1", (400, 200), color=0)
     test_draw = ImageDraw.Draw(test_img)
 
@@ -134,55 +121,35 @@ def measure_font_dimensions(font, character_codes):
 
     avg_width = total_width / char_count if char_count > 0 else 8
 
-    # Add padding for better appearance
     max_height += 1
-    max_width = max(max_width, 4)  # Minimum width
+    max_width = max(max_width, 4)
 
     return max_height, max_width, avg_width
 
 
 def generate_variable_width_glyphs(font, bitmap_width, font_height, character_codes):
-    """Generate variable width bitmap data for specified characters with dense array"""
-
     if not character_codes:
         return []
-
-    first_char = min(character_codes)
-    last_char = max(character_codes)
-    character_set = set(character_codes)
 
     glyphs = []
     bytes_per_row = bitmap_width // 8
 
-    # Create default glyph for missing characters
-    default_bitmap = [0] * (font_height * bytes_per_row)
-    default_width = 4
-
-    # Generate glyphs for full range from first_char to last_char
-    for code in range(first_char, last_char + 1):
-        if code in character_set:
-            # Generate actual glyph
-            glyph = generate_single_glyph(
-                font, code, bitmap_width, font_height, bytes_per_row
-            )
-            glyphs.append(glyph)
-        else:
-            # Use default glyph for missing characters
-            glyphs.append((code, default_width, default_bitmap[:]))
+    for code in character_codes:
+        glyph = generate_single_glyph(
+            font, code, bitmap_width, font_height, bytes_per_row
+        )
+        glyphs.append(glyph)
 
     return glyphs
 
 
 def generate_single_glyph(font, code, bitmap_width, font_height, bytes_per_row):
-    """Generate a single character glyph"""
     try:
         char = chr(code)
     except ValueError:
-        # Invalid character code
         bitmap = [0] * (font_height * bytes_per_row)
         return (code, 4, bitmap)
 
-    # Create character image with extra space for measurement
     measure_img = Image.new("1", (bitmap_width * 2, font_height * 2), color=0)
     measure_draw = ImageDraw.Draw(measure_img)
 
@@ -190,26 +157,19 @@ def generate_single_glyph(font, code, bitmap_width, font_height, bytes_per_row):
     bitmap = [0] * (font_height * bytes_per_row)
 
     try:
-        # First, measure the character
         bbox = measure_draw.textbbox((0, 0), char, font=font)
-        char_width = max(1, bbox[2] - bbox[0])  # Minimum width of 1
-
-        # Limit character width to bitmap width
+        char_width = max(1, bbox[2] - bbox[0])
         char_width = min(char_width, bitmap_width)
 
-        # For space character, use a reasonable width
-        if code == 32:  # Space
+        if code == 32:
             char_width = max(4, char_width // 2)
 
-        # Create bitmap image
-        if char_width > 0 and code != 32:  # Don't render space
+        if char_width > 0 and code != 32:
             img = Image.new("1", (bitmap_width, font_height), color=0)
             draw = ImageDraw.Draw(img)
 
-            # Draw character at origin
             draw.text((0, 0), char, font=font, fill=1)
 
-            # Convert to bitmap bytes
             for y in range(font_height):
                 for byte_idx in range(bytes_per_row):
                     byte_val = 0
@@ -220,12 +180,11 @@ def generate_single_glyph(font, code, bitmap_width, font_height, bytes_per_row):
                                 if img.getpixel((x, y)):
                                     byte_val |= 0x80 >> bit
                             except:
-                                pass  # Pixel out of bounds
+                                pass
                     bitmap[y * bytes_per_row + byte_idx] = byte_val
 
     except Exception as e:
         print(f"Warning: Could not render character {code} ('{char}'): {e}")
-        # Use default width for problematic characters
         char_width = 4 if code == 32 else 6
 
     return (code, char_width, bitmap)
@@ -242,8 +201,6 @@ def write_c_header(
     avg_width,
     character_codes,
 ):
-    """Write C header file with variable width font data"""
-
     header_guard = (
         os.path.basename(output_path).upper().replace(".", "_").replace("-", "_")
     )
@@ -251,7 +208,6 @@ def write_c_header(
     last_char = max(character_codes) if character_codes else 127
 
     with open(output_path, "w") as f:
-        # File header
         f.write("/*\n")
         f.write(" * Variable Width Bitmap Font Data\n")
         f.write(f" * Generated from: {os.path.basename(source_font)}\n")
@@ -270,7 +226,6 @@ def write_c_header(
         f.write("#include <stdint.h>\n")
         f.write("#include <microui/font.h>\n\n")
 
-        # Font data
         f.write("static const uint8_t font_bitmaps[] = {\n")
         bitmap_offset = 0
         bitmap_offsets = []
@@ -285,24 +240,21 @@ def write_c_header(
 
         f.write("static const struct FontGlyph font_glyphs[] = {\n")
         for i, (unicode, width, bitmap) in enumerate(glyphs):
-            char_name = format_char_name(unicode)
             f.write(
-                f"    {{{width:2d}, {height:2d}, &font_bitmaps[{bitmap_offsets[i]}]}}"
+                f"    {{{unicode}u, {width:2d}, {height:2d}, &font_bitmaps[{bitmap_offsets[i]}]}}"
             )
             if i < len(glyphs) - 1:
                 f.write(",")
-            f.write(f" // {char_name} (width: {width})\n")
+            f.write(f" // {format_char_name(unicode)} (width: {width})\n")
         f.write("};\n\n")
 
-        # Font struct
         f.write("static const struct Font font = {\n")
         f.write(f"    .height = {height},\n")
         f.write(f"    .bitmap_width = {bitmap_width},\n")
         f.write(f"    .bytes_per_row = {bytes_per_row},\n")
-        f.write(f"    .first_char = {first_char},\n")
-        f.write(f"    .last_char = {last_char},\n")
         f.write(f"    .default_width = {int(avg_width + 0.5)},\n")
         f.write("    .char_spacing = 1,\n")
+        f.write(f"    .glyph_count = {len(glyphs)},\n")
         f.write("    .glyphs = font_glyphs\n")
         f.write("};\n\n")
 
@@ -310,7 +262,6 @@ def write_c_header(
 
 
 def format_char_name(unicode):
-    """Format character name for comments"""
     try:
         char = chr(unicode)
         if unicode == 32:
@@ -361,11 +312,9 @@ Features:
 
     args = parser.parse_args()
 
-    # Validate font size
     if args.size < 4 or args.size > 128:
         parser.error(f"Font size {args.size} out of range (4-128)")
 
-    # Parse character ranges
     try:
         character_codes = parse_character_ranges(args.char_range)
         if not character_codes:
@@ -373,7 +322,6 @@ Features:
     except ValueError as e:
         parser.error(f"Invalid character range: {e}")
 
-    # Generate font data
     try:
         generate_font_data(args.font_file, args.size, args.output, character_codes)
         print("\nSuccess! Font supports variable character widths.")

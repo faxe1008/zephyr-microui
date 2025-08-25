@@ -30,12 +30,81 @@ static bool has_clip_rect = false;
 static struct k_work_q mu_work_queue;
 static K_KERNEL_STACK_DEFINE(mu_work_stack, CONFIG_MICROUI_EVENT_LOOP_STACK_SIZE);
 
-static __always_inline const struct FontGlyph *find_glyph(const struct Font *font, uint32_t unicode)
+static __always_inline const struct FontGlyph *find_glyph(const struct Font *font,
+							  uint32_t codepoint)
 {
-	if (unicode < font->first_char || unicode > font->last_char) {
-		return NULL;
+	int left = 0;
+	int right = font->glyph_count - 1;
+
+	while (left <= right) {
+		int mid = left + (right - left) / 2;
+
+		if (font->glyphs[mid].codepoint == codepoint) {
+			return &font->glyphs[mid];
+		}
+
+		if (font->glyphs[mid].codepoint < codepoint) {
+			left = mid + 1;
+		} else {
+			right = mid - 1;
+		}
 	}
-	return &font->glyphs[unicode - font->first_char];
+
+	return NULL;
+}
+
+static __always_inline int next_utf8_codepoint(const char *str, uint32_t *codepoint)
+{
+#ifdef CONFIG_MICROUI_TEXT_UTF8
+	const uint8_t *bytes = (const uint8_t *)str;
+
+	if (!bytes[0]) {
+		*codepoint = 0;
+		return 0;
+	}
+
+	if (bytes[0] < 0x80) {
+		// ASCII character (0xxxxxxx)
+		*codepoint = bytes[0];
+		return 1;
+	} else if ((bytes[0] & 0xE0) == 0xC0) {
+		// 2-byte sequence (110xxxxx 10xxxxxx)
+		if (!bytes[1] || (bytes[1] & 0xC0) != 0x80) {
+			*codepoint = 0xFFFD; // replacement character
+			return 1;
+		}
+		*codepoint = ((bytes[0] & 0x1F) << 6) | (bytes[1] & 0x3F);
+		return 2;
+	} else if ((bytes[0] & 0xF0) == 0xE0) {
+		// 3-byte sequence (1110xxxx 10xxxxxx 10xxxxxx)
+		if (!bytes[1] || !bytes[2] || (bytes[1] & 0xC0) != 0x80 ||
+		    (bytes[2] & 0xC0) != 0x80) {
+			*codepoint = 0xFFFD; // replacement character
+			return 1;
+		}
+		*codepoint =
+			((bytes[0] & 0x0F) << 12) | ((bytes[1] & 0x3F) << 6) | (bytes[2] & 0x3F);
+		return 3;
+	} else if ((bytes[0] & 0xF8) == 0xF0) {
+		// 4-byte sequence (11110xxx 10xxxxxx 10xxxxxx 10xxxxxx)
+		if (!bytes[1] || !bytes[2] || !bytes[3] || (bytes[1] & 0xC0) != 0x80 ||
+		    (bytes[2] & 0xC0) != 0x80 || (bytes[3] & 0xC0) != 0x80) {
+			*codepoint = 0xFFFD; // replacement character
+			return 1;
+		}
+		*codepoint = ((bytes[0] & 0x07) << 18) | ((bytes[1] & 0x3F) << 12) |
+			     ((bytes[2] & 0x3F) << 6) | (bytes[3] & 0x3F);
+		return 4;
+	} else {
+		// Invalid UTF-8 start byte
+		*codepoint = 0xFFFD; // replacement character
+		return 1;
+	}
+#else
+	// ASCII fallback
+	*codepoint = (uint8_t)*str;
+	return *str ? 1 : 0;
+#endif
 }
 
 static __always_inline uint8_t luminance(mu_Color color)
@@ -156,9 +225,9 @@ static void set_pixel(int x, int y, mu_Color color)
 	}
 }
 
-static __always_inline void draw_char(char c, int x, int y, const struct Font *font, mu_Color color)
+static __always_inline void draw_glyph(const struct FontGlyph *glyph, int x, int y,
+				       const struct Font *font, mu_Color color)
 {
-	const struct FontGlyph *glyph = find_glyph(font, (uint32_t)c);
 	if (!glyph) {
 		return;
 	}
@@ -233,15 +302,24 @@ static void renderer_draw_text(mu_Font f, const char *text, mu_Vec2 pos, mu_Colo
 		return;
 	}
 
-	while (*text) {
-		const struct FontGlyph *glyph = find_glyph(font, (uint32_t)*text);
+	const char *current = text;
+	while (*current) {
+		uint32_t codepoint;
+		int bytes_consumed = next_utf8_codepoint(current, &codepoint);
+
+		if (bytes_consumed == 0) {
+			break;
+		}
+
+		const struct FontGlyph *glyph = find_glyph(font, codepoint);
 		if (glyph) {
-			draw_char(*text, x, pos.y, font, color);
+			draw_glyph(glyph, x, pos.y, font, color);
 			x += glyph->width + font->char_spacing;
 		} else {
 			x += font->default_width + font->char_spacing;
 		}
-		text++;
+
+		current += bytes_consumed;
 	}
 }
 
@@ -253,6 +331,7 @@ static int renderer_get_text_width(mu_Font f, const char *text, int len)
 {
 	int width = 0;
 	int char_count = 0;
+	int byte_count = 0;
 	const struct Font *font = (const struct Font *)f;
 
 	if (!font) {
@@ -264,15 +343,25 @@ static int renderer_get_text_width(mu_Font f, const char *text, int len)
 		len = strlen(text);
 	}
 
-	while (char_count < len) {
-		const struct FontGlyph *glyph = find_glyph(font, (uint32_t)*text);
+	const char *current = text;
+	while (byte_count < len && *current) {
+		uint32_t codepoint;
+		int bytes_consumed = next_utf8_codepoint(current, &codepoint);
+
+		if (bytes_consumed == 0 || byte_count + bytes_consumed > len) {
+			break;
+		}
+
+		const struct FontGlyph *glyph = find_glyph(font, codepoint);
 		if (glyph) {
 			width += glyph->width;
 		} else {
 			width += font->default_width;
 		}
+
 		char_count++;
-		text++;
+		byte_count += bytes_consumed;
+		current += bytes_consumed;
 	}
 
 	if (char_count > 0) {

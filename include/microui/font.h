@@ -7,21 +7,21 @@ extern "C" {
 
 #include <stdint.h>
 
+struct FontGlyph {
+	uint32_t codepoint;
+	uint8_t width;
+	uint8_t height;
+	const uint8_t *bitmap;
+};
+
 struct Font {
 	uint32_t height;
 	uint32_t bitmap_width;
 	uint32_t bytes_per_row;
-	uint32_t first_char;
-	uint32_t last_char;
 	uint32_t default_width;
 	uint32_t char_spacing;
+	uint32_t glyph_count;
 	const struct FontGlyph *glyphs;
-};
-
-struct FontGlyph {
-	uint8_t width;
-	uint8_t height;
-	const uint8_t *bitmap;
 };
 
 static inline void mu_set_font(mu_Context *ctx, const struct Font *font)
