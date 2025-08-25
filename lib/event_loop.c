@@ -139,6 +139,8 @@ static __always_inline uint32_t color_to_pixel(mu_Color color)
 
 	case PIXEL_FORMAT_L_8:
 		return luminance(color);
+	case PIXEL_FORMAT_AL_88:
+		return (color.a << 8) | luminance(color);
 	default:
 		return 0;
 	}
@@ -220,6 +222,12 @@ static void set_pixel(int x, int y, mu_Color color)
 
 	case PIXEL_FORMAT_L_8: {
 		display_buffer[y * DISPLAY_WIDTH + x] = pixel & 0xFF;
+		break;
+	}
+	case PIXEL_FORMAT_AL_88: {
+		int index = (y * DISPLAY_WIDTH + x) * 2;
+		display_buffer[index + 0] = (pixel >> 8) & 0xFF;
+		display_buffer[index + 1] = pixel & 0xFF;
 		break;
 	}
 	}
