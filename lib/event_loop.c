@@ -63,7 +63,7 @@ static __always_inline int next_utf8_codepoint(const char *str, uint32_t *codepo
 		return 0;
 	}
 
-	if (bytes[0] < 0x80) {
+	if (likely(bytes[0] < 0x80)) {
 		// ASCII character (0xxxxxxx)
 		*codepoint = bytes[0];
 		return 1;
@@ -153,7 +153,7 @@ static void set_pixel(int x, int y, mu_Color color)
 		return;
 	}
 
-	if (has_clip_rect) {
+	if (likely(has_clip_rect)) {
 		if (x < clip_rect.x || y < clip_rect.y || x >= clip_rect.x + clip_rect.w ||
 		    y >= clip_rect.y + clip_rect.h) {
 			return;
@@ -315,12 +315,12 @@ static void renderer_draw_text(mu_Font f, const char *text, mu_Vec2 pos, mu_Colo
 		uint32_t codepoint;
 		int bytes_consumed = next_utf8_codepoint(current, &codepoint);
 
-		if (bytes_consumed == 0) {
+		if (unlikely(bytes_consumed == 0)) {
 			break;
 		}
 
 		const struct FontGlyph *glyph = find_glyph(font, codepoint);
-		if (glyph) {
+		if (likely(glyph)) {
 			draw_glyph(glyph, x, pos.y, font, color);
 			x += glyph->width + font->char_spacing;
 		} else {
@@ -361,7 +361,7 @@ static int renderer_get_text_width(mu_Font f, const char *text, int len)
 		}
 
 		const struct FontGlyph *glyph = find_glyph(font, codepoint);
-		if (glyph) {
+		if (likely(glyph)) {
 			width += glyph->width;
 		} else {
 			width += font->default_width;
@@ -393,24 +393,6 @@ static void renderer_set_clip_rect(mu_Rect rect)
 {
 	clip_rect = rect;
 	has_clip_rect = true;
-
-	if (clip_rect.x < 0) {
-		clip_rect.w += clip_rect.x;
-		clip_rect.x = 0;
-	}
-
-	if (clip_rect.y < 0) {
-		clip_rect.h += clip_rect.y;
-		clip_rect.y = 0;
-	}
-
-	if (clip_rect.x + clip_rect.w > DISPLAY_WIDTH) {
-		clip_rect.w = DISPLAY_WIDTH - clip_rect.x;
-	}
-
-	if (clip_rect.y + clip_rect.h > DISPLAY_HEIGHT) {
-		clip_rect.h = DISPLAY_HEIGHT - clip_rect.y;
-	}
 }
 
 static void renderer_clear(mu_Color color)
