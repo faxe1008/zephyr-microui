@@ -829,7 +829,7 @@ static int number_textbox(mu_Context *ctx, mu_Real *value, mu_Rect r, mu_Id id) 
       ctx->hover == id
   ) {
     ctx->number_edit = id;
-    sprintf(ctx->number_edit_buf, MU_REAL_FMT, *value);
+    sprintf(ctx->number_edit_buf, MU_REAL_FMT, (double)*value);
   }
   if (ctx->number_edit == id) {
     int res = mu_textbox_raw(
@@ -887,7 +887,7 @@ int mu_slider_ex(mu_Context *ctx, mu_Real *value, mu_Real low, mu_Real high,
   thumb = mu_rect(base.x + x, base.y, w, base.h);
   mu_draw_control_frame(ctx, id, thumb, MU_COLOR_BUTTON, opt);
   /* draw text  */
-  sprintf(buf, fmt, v);
+  sprintf(buf, fmt, (double)v);
   mu_draw_control_text(ctx, buf, base, MU_COLOR_TEXT, opt);
 
   return res;
@@ -919,7 +919,7 @@ int mu_number_ex(mu_Context *ctx, mu_Real *value, mu_Real step,
   /* draw base */
   mu_draw_control_frame(ctx, id, base, MU_COLOR_BASE, opt);
   /* draw text  */
-  sprintf(buf, fmt, *value);
+  sprintf(buf, fmt, (double)*value);
   mu_draw_control_text(ctx, buf, base, MU_COLOR_TEXT, opt);
 
   return res;
