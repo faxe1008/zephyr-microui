@@ -1,6 +1,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/display.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include <microui/event_loop.h>
 #include <microui/font.h>
@@ -233,6 +234,36 @@ static void set_pixel(int x, int y, mu_Color color)
 	}
 }
 
+static void draw_line(mu_Vec2 p0, mu_Vec2 p1, uint8_t thickness, mu_Color color)
+{
+	int dx = abs(p1.x - p0.x);
+	int dy = abs(p1.y - p0.y);
+	int sx = (p0.x < p1.x) ? 1 : -1;
+	int sy = (p0.y < p1.y) ? 1 : -1;
+	int err = dx - dy;
+
+	while (true) {
+		for (int ty = -thickness / 2; ty <= thickness / 2; ty++) {
+			for (int tx = -thickness / 2; tx <= thickness / 2; tx++) {
+				set_pixel(p0.x + tx, p0.y + ty, color);
+			}
+		}
+
+		if (p0.x == p1.x && p0.y == p1.y) {
+			break;
+		}
+		int err2 = err * 2;
+		if (err2 > -dy) {
+			err -= dy;
+			p0.x += sx;
+		}
+		if (err2 < dx) {
+			err += dx;
+			p0.y += sy;
+		}
+	}
+}
+
 static __always_inline void draw_glyph(const struct FontGlyph *glyph, int x, int y,
 				       const struct Font *font, mu_Color color)
 {
@@ -333,6 +364,38 @@ static void renderer_draw_text(mu_Font f, const char *text, mu_Vec2 pos, mu_Colo
 
 static void renderer_draw_icon(int id, mu_Rect rect, mu_Color color)
 {
+	switch (id) {
+	case MU_ICON_CLOSE:
+		draw_line((mu_Vec2){rect.x + rect.w / 4, rect.y + rect.h / 4},
+			  (mu_Vec2){rect.x + rect.w - rect.w / 4, rect.y + rect.h - rect.h / 4}, 1,
+			  color);
+		draw_line((mu_Vec2){rect.x + rect.w - rect.w / 4, rect.y + rect.h / 4},
+			  (mu_Vec2){rect.x + rect.w / 4, rect.y + rect.h - rect.h / 4}, 1, color);
+		break;
+	case MU_ICON_COLLAPSED:
+		draw_line((mu_Vec2){rect.x + rect.w / 3, rect.y + rect.h / 3},
+			  (mu_Vec2){rect.x + rect.w - rect.w / 3, rect.y + rect.h / 2}, 1, color);
+		draw_line((mu_Vec2){rect.x + rect.w - rect.w / 3, rect.y + rect.h / 2},
+			  (mu_Vec2){rect.x + rect.w / 3, rect.y + rect.h - rect.h / 3}, 1, color);
+		draw_line((mu_Vec2){rect.x + rect.w / 3, rect.y + rect.h - rect.h / 3},
+			  (mu_Vec2){rect.x + rect.w / 3, rect.y + rect.h / 3}, 1, color);
+		break;
+	case MU_ICON_EXPANDED:
+		draw_line((mu_Vec2){rect.x + rect.w / 3, rect.y + rect.h / 3},
+			  (mu_Vec2){rect.x + rect.w - rect.w / 3, rect.y + rect.h / 3}, 1, color);
+		draw_line((mu_Vec2){rect.x + rect.w - rect.w / 3, rect.y + rect.h / 3},
+			  (mu_Vec2){rect.x + rect.w / 2, rect.y + rect.h - rect.h / 3}, 1, color);
+		draw_line((mu_Vec2){rect.x + rect.w / 2, rect.y + rect.h - rect.h / 3},
+			  (mu_Vec2){rect.x + rect.w / 3, rect.y + rect.h / 3}, 1, color);
+		break;
+	case MU_ICON_CHECK:
+		// Draw a check mark with some padding
+		draw_line((mu_Vec2){rect.x + rect.w / 4, rect.y + rect.h / 2},
+			  (mu_Vec2){rect.x + rect.w / 2, rect.y + rect.h - rect.h / 4}, 1, color);
+		draw_line((mu_Vec2){rect.x + rect.w / 2, rect.y + rect.h - rect.h / 4},
+			  (mu_Vec2){rect.x + rect.w - rect.w / 5, rect.y + rect.h / 5}, 1, color);
+		break;
+	}
 }
 
 static int renderer_get_text_width(mu_Font f, const char *text, int len)
