@@ -13,7 +13,8 @@ LOG_MODULE_REGISTER(microui_event_loop, LOG_LEVEL_INF);
 #define DISPLAY_WIDTH  DT_PROP(DISPLAY_NODE, width)
 #define DISPLAY_HEIGHT DT_PROP(DISPLAY_NODE, height)
 
-#define DISPLAY_BUFFER_SIZE (CONFIG_MICROUI_BITS_PER_PIXEL * DISPLAY_WIDTH * DISPLAY_HEIGHT) / 8
+#define DISPLAY_BUFFER_SIZE                                                                        \
+	(CONFIG_MICROUI_BITS_PER_PIXEL * ROUND_UP(DISPLAY_WIDTH, 8) * DISPLAY_HEIGHT) / 8
 
 static const struct device *display_dev = DEVICE_DT_GET(DISPLAY_NODE);
 static uint8_t display_buffer[DISPLAY_BUFFER_SIZE] __aligned(4);
@@ -131,11 +132,7 @@ static __always_inline uint32_t color_to_pixel(mu_Color color)
 	case PIXEL_FORMAT_MONO01:
 	case PIXEL_FORMAT_MONO10: {
 		uint8_t luma = luminance(color);
-		if (display_caps.current_pixel_format == PIXEL_FORMAT_MONO01) {
-			return (luma > 127) ? 1 : 0;
-		} else {
-			return (luma > 127) ? 0 : 1;
-		}
+		return (luma > 127) ? 1 : 0;
 	}
 
 	case PIXEL_FORMAT_L_8:
@@ -193,25 +190,32 @@ static void set_pixel(int x, int y, mu_Color color)
 	case PIXEL_FORMAT_MONO10: {
 		uint8_t bit;
 		uint8_t *buf;
-		if (pixel) {
-			if (display_caps.screen_info & SCREEN_INFO_MONO_VTILED) {
-				buf = display_buffer + x + y / 8 * DISPLAY_WIDTH;
+		if (display_caps.screen_info & SCREEN_INFO_MONO_VTILED) {
+			buf = display_buffer + x + y / 8 * DISPLAY_WIDTH;
 
-				if (display_caps.screen_info & SCREEN_INFO_MONO_MSB_FIRST) {
-					bit = 7 - y % 8;
-				} else {
-					bit = y % 8;
-				}
+			if (display_caps.screen_info & SCREEN_INFO_MONO_MSB_FIRST) {
+				bit = 7 - y % 8;
 			} else {
-				buf = display_buffer + x / 8 + y * DISPLAY_WIDTH / 8;
-
-				if (display_caps.screen_info & SCREEN_INFO_MONO_MSB_FIRST) {
-					bit = 7 - x % 8;
-				} else {
-					bit = x % 8;
-				}
+				bit = y % 8;
 			}
-			if (display_caps.current_pixel_format == PIXEL_FORMAT_MONO10) {
+		} else {
+			buf = display_buffer + x / 8 + y * DISPLAY_WIDTH / 8;
+
+			if (display_caps.screen_info & SCREEN_INFO_MONO_MSB_FIRST) {
+				bit = 7 - x % 8;
+			} else {
+				bit = x % 8;
+			}
+		}
+
+		if (display_caps.current_pixel_format == PIXEL_FORMAT_MONO01) {
+			if (pixel) {
+				*buf |= BIT(bit);
+			} else {
+				*buf &= ~BIT(bit);
+			}
+		} else {
+			if (pixel) {
 				*buf |= BIT(bit);
 			} else {
 				*buf &= ~BIT(bit);
