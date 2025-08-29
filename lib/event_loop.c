@@ -145,7 +145,7 @@ static __always_inline uint32_t color_to_pixel(mu_Color color)
 	return 0;
 }
 
-static void set_pixel(int x, int y, mu_Color color)
+static void set_pixel(int x, int y, uint32_t pixel)
 {
 	if (x < 0 || y < 0 || x >= DISPLAY_WIDTH || y >= DISPLAY_HEIGHT) {
 		return;
@@ -157,8 +157,6 @@ static void set_pixel(int x, int y, mu_Color color)
 			return;
 		}
 	}
-
-	uint32_t pixel = color_to_pixel(color);
 
 	switch (display_caps.current_pixel_format) {
 	case PIXEL_FORMAT_RGB_888: {
@@ -245,11 +243,12 @@ static void draw_line(mu_Vec2 p0, mu_Vec2 p1, uint8_t thickness, mu_Color color)
 	int sx = (p0.x < p1.x) ? 1 : -1;
 	int sy = (p0.y < p1.y) ? 1 : -1;
 	int err = dx - dy;
+	uint32_t pixel = color_to_pixel(color);
 
 	while (true) {
 		for (int ty = -thickness / 2; ty <= thickness / 2; ty++) {
 			for (int tx = -thickness / 2; tx <= thickness / 2; tx++) {
-				set_pixel(p0.x + tx, p0.y + ty, color);
+				set_pixel(p0.x + tx, p0.y + ty, pixel);
 			}
 		}
 
@@ -275,12 +274,14 @@ static __always_inline void draw_glyph(const struct FontGlyph *glyph, int x, int
 		return;
 	}
 
+	uint32_t pixel = color_to_pixel(color);
+
 	for (int row = 0; row < font->height; row++) {
 		if (font->bitmap_width <= 8) {
 			uint8_t row_data = glyph->bitmap[row];
 			for (int col = 0; col < glyph->width && col < font->bitmap_width; col++) {
 				if (row_data & (0x80 >> col)) {
-					set_pixel(x + col, y + row, color);
+					set_pixel(x + col, y + row, pixel);
 				}
 			}
 		} else if (font->bitmap_width <= 16) {
@@ -288,7 +289,7 @@ static __always_inline void draw_glyph(const struct FontGlyph *glyph, int x, int
 				(glyph->bitmap[row * 2] << 8) | glyph->bitmap[row * 2 + 1];
 			for (int col = 0; col < glyph->width && col < font->bitmap_width; col++) {
 				if (row_data & (0x8000 >> col)) {
-					set_pixel(x + col, y + row, color);
+					set_pixel(x + col, y + row, pixel);
 				}
 			}
 		} else {
@@ -298,7 +299,7 @@ static __always_inline void draw_glyph(const struct FontGlyph *glyph, int x, int
 					    glyph->bitmap[row * 4 + 3];
 			for (int col = 0; col < glyph->width && col < font->bitmap_width; col++) {
 				if (row_data & (0x80000000 >> col)) {
-					set_pixel(x + col, y + row, color);
+					set_pixel(x + col, y + row, pixel);
 				}
 			}
 		}
@@ -328,9 +329,10 @@ static void renderer_init(void)
 
 static void renderer_draw_rect(mu_Rect rect, mu_Color color)
 {
+	uint32_t pixel = color_to_pixel(color);
 	for (int y = rect.y; y < rect.y + rect.h; y++) {
 		for (int x = rect.x; x < rect.x + rect.w; x++) {
-			set_pixel(x, y, color);
+			set_pixel(x, y, pixel);
 		}
 	}
 }
@@ -464,9 +466,10 @@ static void renderer_set_clip_rect(mu_Rect rect)
 
 static void renderer_clear(mu_Color color)
 {
+	uint32_t pixel = color_to_pixel(color);
 	for (int y = 0; y < DISPLAY_HEIGHT; y++) {
 		for (int x = 0; x < DISPLAY_WIDTH; x++) {
-			set_pixel(x, y, color);
+			set_pixel(x, y, pixel);
 		}
 	}
 }
