@@ -186,40 +186,26 @@ static void set_pixel(int x, int y, uint32_t pixel)
 
 	case PIXEL_FORMAT_MONO01:
 	case PIXEL_FORMAT_MONO10: {
-		uint8_t bit;
 		uint8_t *buf;
+		uint8_t bit;
+
 		if (display_caps.screen_info & SCREEN_INFO_MONO_VTILED) {
-			buf = display_buffer + x + y / 8 * DISPLAY_WIDTH;
-
-			if (display_caps.screen_info & SCREEN_INFO_MONO_MSB_FIRST) {
-				bit = 7 - y % 8;
-			} else {
-				bit = y % 8;
-			}
+			buf = display_buffer + x + (y >> 3) * DISPLAY_WIDTH;
+			bit = (display_caps.screen_info & SCREEN_INFO_MONO_MSB_FIRST)
+				      ? (7 - (y & 7))
+				      : (y & 7);
 		} else {
-			buf = display_buffer + x / 8 + y * DISPLAY_WIDTH / 8;
-
-			if (display_caps.screen_info & SCREEN_INFO_MONO_MSB_FIRST) {
-				bit = 7 - x % 8;
-			} else {
-				bit = x % 8;
-			}
+			buf = display_buffer + (x >> 3) + y * (DISPLAY_WIDTH >> 3);
+			bit = (display_caps.screen_info & SCREEN_INFO_MONO_MSB_FIRST)
+				      ? (7 - (x & 7))
+				      : (x & 7);
 		}
 
-		if (display_caps.current_pixel_format == PIXEL_FORMAT_MONO01) {
-			if (pixel) {
-				*buf |= BIT(bit);
-			} else {
-				*buf &= ~BIT(bit);
-			}
+		if (pixel) {
+			*buf |= BIT(bit);
 		} else {
-			if (pixel) {
-				*buf |= BIT(bit);
-			} else {
-				*buf &= ~BIT(bit);
-			}
+			*buf &= ~BIT(bit);
 		}
-
 		break;
 	}
 
