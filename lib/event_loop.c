@@ -132,7 +132,7 @@ static __always_inline uint32_t color_to_pixel(mu_Color color)
 	case PIXEL_FORMAT_MONO01:
 	case PIXEL_FORMAT_MONO10: {
 		uint8_t luma = luminance(color);
-		return (luma > 127) ? 1 : 0;
+		return (luma > 127) ? 0xFF : 0;
 	}
 
 	case PIXEL_FORMAT_L_8:
@@ -467,9 +467,35 @@ static void renderer_set_clip_rect(mu_Rect rect)
 static void renderer_clear(mu_Color color)
 {
 	uint32_t pixel = color_to_pixel(color);
-	for (int y = 0; y < DISPLAY_HEIGHT; y++) {
-		for (int x = 0; x < DISPLAY_WIDTH; x++) {
-			set_pixel(x, y, pixel);
+
+	switch (display_caps.current_pixel_format) {
+	case PIXEL_FORMAT_AL_88:
+	case PIXEL_FORMAT_RGB_565:
+	case PIXEL_FORMAT_BGR_565: {
+		uint16_t pixel16 = (uint16_t)pixel;
+		uint16_t *buf16 = (uint16_t *)display_buffer;
+		for (int i = 0; i < DISPLAY_WIDTH * DISPLAY_HEIGHT; i++) {
+			buf16[i] = pixel16;
+		}
+		break;
+	}
+	case PIXEL_FORMAT_L_8:
+	case PIXEL_FORMAT_MONO01:
+	case PIXEL_FORMAT_MONO10: {
+		memset(display_buffer, (uint8_t)pixel, DISPLAY_BUFFER_SIZE);
+		break;
+	}
+	case PIXEL_FORMAT_ARGB_8888: {
+		uint32_t *buf32 = (uint32_t *)display_buffer;
+		for (int i = 0; i < DISPLAY_WIDTH * DISPLAY_HEIGHT; i++) {
+			buf32[i] = pixel;
+		}
+	}
+	default:
+		for (int y = 0; y < DISPLAY_HEIGHT; y++) {
+			for (int x = 0; x < DISPLAY_WIDTH; x++) {
+				set_pixel(x, y, pixel);
+			}
 		}
 	}
 }
