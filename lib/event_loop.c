@@ -169,18 +169,17 @@ static void set_pixel(int x, int y, uint32_t pixel)
 
 	case PIXEL_FORMAT_ARGB_8888: {
 		int index = (y * DISPLAY_WIDTH + x) * 4;
-		display_buffer[index + 0] = (pixel >> 24) & 0xFF; // A
-		display_buffer[index + 1] = (pixel >> 16) & 0xFF; // R
-		display_buffer[index + 2] = (pixel >> 8) & 0xFF;  // G
-		display_buffer[index + 3] = pixel & 0xFF;         // B
+		uint32_t *p = (uint32_t *)(display_buffer + index);
+		*p = pixel;
 		break;
 	}
 
+	case PIXEL_FORMAT_AL_88:
 	case PIXEL_FORMAT_RGB_565:
 	case PIXEL_FORMAT_BGR_565: {
 		int index = (y * DISPLAY_WIDTH + x) * 2;
-		display_buffer[index + 0] = (pixel >> 8) & 0xFF;
-		display_buffer[index + 1] = pixel & 0xFF;
+		uint16_t *p = (uint16_t *)(display_buffer + index);
+		*p = (uint16_t)pixel;
 		break;
 	}
 
@@ -210,13 +209,7 @@ static void set_pixel(int x, int y, uint32_t pixel)
 	}
 
 	case PIXEL_FORMAT_L_8: {
-		display_buffer[y * DISPLAY_WIDTH + x] = pixel & 0xFF;
-		break;
-	}
-	case PIXEL_FORMAT_AL_88: {
-		int index = (y * DISPLAY_WIDTH + x) * 2;
-		display_buffer[index + 0] = (pixel >> 8) & 0xFF;
-		display_buffer[index + 1] = pixel & 0xFF;
+		display_buffer[y * DISPLAY_WIDTH + x] = pixel;
 		break;
 	}
 	}
