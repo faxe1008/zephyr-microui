@@ -249,10 +249,6 @@ static void draw_line(mu_Vec2 p0, mu_Vec2 p1, uint8_t thickness, mu_Color color)
 static __always_inline void draw_glyph(const struct FontGlyph *glyph, int x, int y,
 				       const struct Font *font, mu_Color color)
 {
-	if (!glyph) {
-		return;
-	}
-
 	uint32_t pixel = color_to_pixel(color);
 
 	for (int row = 0; row < font->height; row++) {
