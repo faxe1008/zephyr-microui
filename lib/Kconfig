@@ -62,4 +62,11 @@ config MICROUI_EVENT_LOOP_STACK_SIZE
       to handle the expected workload of the event loop, including processing input events
       and updating the display.
 
+config MICROUI_DRAW_EXTENSIONS
+    bool "Enable MicroUI draw extensions"
+    default y
+    help
+      Enable additional extensions for MicroUI that provide extra functionality and
+      features beyond the core library. Includes support for drawing circles and polygons.
+
 endif

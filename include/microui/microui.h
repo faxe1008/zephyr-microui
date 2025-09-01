@@ -28,6 +28,7 @@
 #define mu_min(a, b)            ((a) < (b) ? (a) : (b))
 #define mu_max(a, b)            ((a) > (b) ? (a) : (b))
 #define mu_clamp(x, a, b)       mu_min(b, mu_max(a, x))
+#define mu_abs(x)               ((x) < 0 ? -(x) : (x))
 
 enum {
   MU_CLIP_PART = 1,
@@ -40,6 +41,11 @@ enum {
   MU_COMMAND_RECT,
   MU_COMMAND_TEXT,
   MU_COMMAND_ICON,
+#ifdef CONFIG_MICROUI_DRAW_EXTENSIONS
+  MU_COMMAND_ARC,
+  MU_COMMAND_CIRCLE,
+  MU_COMMAND_LINE,
+#endif
   MU_COMMAND_MAX
 };
 
@@ -122,6 +128,11 @@ typedef struct { mu_BaseCommand base; mu_Rect rect; } mu_ClipCommand;
 typedef struct { mu_BaseCommand base; mu_Rect rect; mu_Color color; } mu_RectCommand;
 typedef struct { mu_BaseCommand base; mu_Font font; mu_Vec2 pos; mu_Color color; char str[1]; } mu_TextCommand;
 typedef struct { mu_BaseCommand base; mu_Rect rect; int id; mu_Color color; } mu_IconCommand;
+#ifdef CONFIG_MICROUI_DRAW_EXTENSIONS
+typedef struct { mu_BaseCommand base; mu_Vec2 center; int radius; mu_Color color; } mu_CircleCommand;
+typedef struct { mu_BaseCommand base; mu_Vec2 center; int radius; int thickness; mu_Real start_angle; mu_Real end_angle; mu_Color color; } mu_ArcCommand;
+typedef struct { mu_BaseCommand base; mu_Vec2 p0, p1; int thickness; mu_Color color; } mu_LineCommand;
+#endif
 
 typedef union {
   int type;
@@ -131,6 +142,11 @@ typedef union {
   mu_RectCommand rect;
   mu_TextCommand text;
   mu_IconCommand icon;
+#ifdef CONFIG_MICROUI_DRAW_EXTENSIONS
+  mu_ArcCommand arc;
+  mu_CircleCommand circle;
+  mu_LineCommand line;
+#endif
 } mu_Command;
 
 typedef struct {
@@ -251,6 +267,11 @@ void mu_draw_rect(mu_Context *ctx, mu_Rect rect, mu_Color color);
 void mu_draw_box(mu_Context *ctx, mu_Rect rect, mu_Color color);
 void mu_draw_text(mu_Context *ctx, mu_Font font, const char *str, int len, mu_Vec2 pos, mu_Color color);
 void mu_draw_icon(mu_Context *ctx, int id, mu_Rect rect, mu_Color color);
+#ifdef CONFIG_MICROUI_DRAW_EXTENSIONS
+void mu_draw_arc(mu_Context *ctx, mu_Vec2 center, int radius, int thickness, mu_Real start_angle, mu_Real end_angle, mu_Color color);
+void mu_draw_circle(mu_Context *ctx, mu_Vec2 center, int radius, mu_Color color);
+void mu_draw_line(mu_Context *ctx, mu_Vec2 p0, mu_Vec2 p1, int thickness, mu_Color color);
+#endif
 
 void mu_layout_row(mu_Context *ctx, int items, const int *widths, int height);
 void mu_layout_width(mu_Context *ctx, int width);

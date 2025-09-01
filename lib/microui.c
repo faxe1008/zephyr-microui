@@ -522,6 +522,62 @@ void mu_draw_icon(mu_Context *ctx, int id, mu_Rect rect, mu_Color color) {
   if (clipped) { mu_set_clip(ctx, unclipped_rect); }
 }
 
+#ifdef CONFIG_MICROUI_DRAW_EXTENSIONS
+void mu_draw_arc(mu_Context *ctx, mu_Vec2 center, int radius, int thickness, mu_Real start_angle, mu_Real end_angle, mu_Color color)
+{
+  mu_Command *cmd;
+  /* do clip command if the rect isn't fully contained within the cliprect */
+  mu_Rect rect = mu_rect(center.x - radius, center.y - radius, radius * 2, radius * 2);
+  int clipped = mu_check_clip(ctx, rect);
+  if (clipped == MU_CLIP_ALL ) { return; }
+  if (clipped == MU_CLIP_PART) { mu_set_clip(ctx, mu_get_clip_rect(ctx)); }
+  cmd = mu_push_command(ctx, MU_COMMAND_ARC, sizeof(mu_ArcCommand));
+  cmd->arc.center = center;
+  cmd->arc.radius = radius;
+  cmd->arc.color = color;
+  cmd->arc.thickness = thickness;
+  cmd->arc.start_angle = start_angle;
+  cmd->arc.end_angle = end_angle;
+  /* reset clipping if it was set */
+  if (clipped) { mu_set_clip(ctx, unclipped_rect); }
+}
+
+void mu_draw_circle(mu_Context *ctx, mu_Vec2 center, int radius, mu_Color color)
+{
+  mu_Command *cmd;
+  /* do clip command if the rect isn't fully contained within the cliprect */
+  mu_Rect rect = mu_rect(center.x - radius, center.y - radius, radius * 2, radius * 2);
+  int clipped = mu_check_clip(ctx, rect);
+  if (clipped == MU_CLIP_ALL ) { return; }
+  if (clipped == MU_CLIP_PART) { mu_set_clip(ctx, mu_get_clip_rect(ctx)); }
+  cmd = mu_push_command(ctx, MU_COMMAND_CIRCLE, sizeof(mu_CircleCommand));
+  cmd->circle.center = center;
+  cmd->circle.radius = radius;
+  cmd->circle.color = color;
+  /* reset clipping if it was set */
+  if (clipped) { mu_set_clip(ctx, unclipped_rect); }
+}
+
+void mu_draw_line(mu_Context *ctx, mu_Vec2 p0, mu_Vec2 p1, int thickness, mu_Color color)
+{
+  mu_Command *cmd;
+  /* do clip command if the rect isn't fully contained within the cliprect */
+  mu_Rect rect = mu_rect(mu_min(p0.x, p1.x), mu_min(p0.y, p1.y),
+                        mu_abs(p1.x - p0.x) + thickness,
+                        mu_abs(p1.y - p0.y) + thickness);
+  int clipped = mu_check_clip(ctx, rect);
+  if (clipped == MU_CLIP_ALL ) { return; }
+  if (clipped == MU_CLIP_PART) { mu_set_clip(ctx, mu_get_clip_rect(ctx)); }
+  cmd = mu_push_command(ctx, MU_COMMAND_LINE, sizeof(mu_LineCommand));
+  cmd->line.p0 = p0;
+  cmd->line.p1 = p1;
+  cmd->line.thickness = thickness;
+  cmd->line.color = color;
+  /* reset clipping if it was set */
+  if (clipped) { mu_set_clip(ctx, unclipped_rect); }
+}
+
+#endif
 
 /*============================================================================
 ** layout
