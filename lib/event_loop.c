@@ -2,12 +2,17 @@
 #include <zephyr/drivers/display.h>
 #include <string.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include <microui/event_loop.h>
 #include <microui/font.h>
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(microui_event_loop, LOG_LEVEL_INF);
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846f
+#endif
 
 #define DISPLAY_NODE   DT_CHOSEN(zephyr_display)
 #define DISPLAY_WIDTH  DT_PROP(DISPLAY_NODE, width)
@@ -216,7 +221,7 @@ static void set_pixel(int x, int y, uint32_t pixel)
 	}
 }
 
-static void draw_line(mu_Vec2 p0, mu_Vec2 p1, uint8_t thickness, mu_Color color)
+static void renderer_draw_line(mu_Vec2 p0, mu_Vec2 p1, uint8_t thickness, mu_Color color)
 {
 	int dx = abs(p1.x - p0.x);
 	int dy = abs(p1.y - p0.y);
@@ -348,34 +353,42 @@ static void renderer_draw_icon(int id, mu_Rect rect, mu_Color color)
 {
 	switch (id) {
 	case MU_ICON_CLOSE:
-		draw_line((mu_Vec2){rect.x + rect.w / 4, rect.y + rect.h / 4},
-			  (mu_Vec2){rect.x + rect.w - rect.w / 4, rect.y + rect.h - rect.h / 4}, 1,
-			  color);
-		draw_line((mu_Vec2){rect.x + rect.w - rect.w / 4, rect.y + rect.h / 4},
-			  (mu_Vec2){rect.x + rect.w / 4, rect.y + rect.h - rect.h / 4}, 1, color);
+		renderer_draw_line(
+			(mu_Vec2){rect.x + rect.w / 4, rect.y + rect.h / 4},
+			(mu_Vec2){rect.x + rect.w - rect.w / 4, rect.y + rect.h - rect.h / 4}, 1,
+			color);
+		renderer_draw_line((mu_Vec2){rect.x + rect.w - rect.w / 4, rect.y + rect.h / 4},
+				   (mu_Vec2){rect.x + rect.w / 4, rect.y + rect.h - rect.h / 4}, 1,
+				   color);
 		break;
 	case MU_ICON_COLLAPSED:
-		draw_line((mu_Vec2){rect.x + rect.w / 3, rect.y + rect.h / 3},
-			  (mu_Vec2){rect.x + rect.w - rect.w / 3, rect.y + rect.h / 2}, 1, color);
-		draw_line((mu_Vec2){rect.x + rect.w - rect.w / 3, rect.y + rect.h / 2},
-			  (mu_Vec2){rect.x + rect.w / 3, rect.y + rect.h - rect.h / 3}, 1, color);
-		draw_line((mu_Vec2){rect.x + rect.w / 3, rect.y + rect.h - rect.h / 3},
-			  (mu_Vec2){rect.x + rect.w / 3, rect.y + rect.h / 3}, 1, color);
+		renderer_draw_line((mu_Vec2){rect.x + rect.w / 3, rect.y + rect.h / 3},
+				   (mu_Vec2){rect.x + rect.w - rect.w / 3, rect.y + rect.h / 2}, 1,
+				   color);
+		renderer_draw_line((mu_Vec2){rect.x + rect.w - rect.w / 3, rect.y + rect.h / 2},
+				   (mu_Vec2){rect.x + rect.w / 3, rect.y + rect.h - rect.h / 3}, 1,
+				   color);
+		renderer_draw_line((mu_Vec2){rect.x + rect.w / 3, rect.y + rect.h - rect.h / 3},
+				   (mu_Vec2){rect.x + rect.w / 3, rect.y + rect.h / 3}, 1, color);
 		break;
 	case MU_ICON_EXPANDED:
-		draw_line((mu_Vec2){rect.x + rect.w / 3, rect.y + rect.h / 3},
-			  (mu_Vec2){rect.x + rect.w - rect.w / 3, rect.y + rect.h / 3}, 1, color);
-		draw_line((mu_Vec2){rect.x + rect.w - rect.w / 3, rect.y + rect.h / 3},
-			  (mu_Vec2){rect.x + rect.w / 2, rect.y + rect.h - rect.h / 3}, 1, color);
-		draw_line((mu_Vec2){rect.x + rect.w / 2, rect.y + rect.h - rect.h / 3},
-			  (mu_Vec2){rect.x + rect.w / 3, rect.y + rect.h / 3}, 1, color);
+		renderer_draw_line((mu_Vec2){rect.x + rect.w / 3, rect.y + rect.h / 3},
+				   (mu_Vec2){rect.x + rect.w - rect.w / 3, rect.y + rect.h / 3}, 1,
+				   color);
+		renderer_draw_line((mu_Vec2){rect.x + rect.w - rect.w / 3, rect.y + rect.h / 3},
+				   (mu_Vec2){rect.x + rect.w / 2, rect.y + rect.h - rect.h / 3}, 1,
+				   color);
+		renderer_draw_line((mu_Vec2){rect.x + rect.w / 2, rect.y + rect.h - rect.h / 3},
+				   (mu_Vec2){rect.x + rect.w / 3, rect.y + rect.h / 3}, 1, color);
 		break;
 	case MU_ICON_CHECK:
 		// Draw a check mark with some padding
-		draw_line((mu_Vec2){rect.x + rect.w / 4, rect.y + rect.h / 2},
-			  (mu_Vec2){rect.x + rect.w / 2, rect.y + rect.h - rect.h / 4}, 1, color);
-		draw_line((mu_Vec2){rect.x + rect.w / 2, rect.y + rect.h - rect.h / 4},
-			  (mu_Vec2){rect.x + rect.w - rect.w / 5, rect.y + rect.h / 5}, 1, color);
+		renderer_draw_line((mu_Vec2){rect.x + rect.w / 4, rect.y + rect.h / 2},
+				   (mu_Vec2){rect.x + rect.w / 2, rect.y + rect.h - rect.h / 4}, 1,
+				   color);
+		renderer_draw_line((mu_Vec2){rect.x + rect.w / 2, rect.y + rect.h - rect.h / 4},
+				   (mu_Vec2){rect.x + rect.w - rect.w / 5, rect.y + rect.h / 5}, 1,
+				   color);
 		break;
 	}
 }
@@ -488,6 +501,101 @@ static void renderer_present(void)
 	display_write(display_dev, 0, 0, &desc, display_buffer);
 }
 
+#ifdef CONFIG_MICROUI_DRAW_EXTENSIONS
+static void renderer_draw_arc(mu_Vec2 center, int radius, int thickness, mu_Real start_angle,
+			      mu_Real end_angle, mu_Color color)
+{
+	uint32_t pixel = color_to_pixel(color);
+
+	// Convert degrees to radians
+	mu_Real start_rad = start_angle * M_PI / (mu_Real)180.0;
+	mu_Real end_rad = end_angle * M_PI / (mu_Real)180.0;
+
+	// Normalize angles to 0-2π range
+	while (start_rad < 0) {
+		start_rad += 2 * M_PI;
+	}
+	while (end_rad < 0) {
+		end_rad += 2 * M_PI;
+	}
+	while (start_rad >= 2 * M_PI) {
+		start_rad -= 2 * M_PI;
+	}
+	while (end_rad >= 2 * M_PI) {
+		end_rad -= 2 * M_PI;
+	}
+
+	// Handle case where arc crosses 0°
+	bool crosses_zero = end_rad < start_rad;
+
+	// Draw arc using parametric circle equations
+	for (int r = radius - thickness / 2; r <= radius + thickness / 2; r++) {
+		if (r <= 0) {
+			continue;
+		}
+
+		// Calculate step size based on radius for smooth arc
+		int steps = 2 * M_PI * r;
+		if (steps < 8) {
+			steps = 8;
+		}
+
+		mu_Real step = 2 * M_PI / steps;
+
+		for (int i = 0; i < steps; i++) {
+			mu_Real angle = i * step;
+
+			// Check if angle is within arc range
+			bool in_range;
+			if (crosses_zero) {
+				in_range = (angle >= start_rad) || (angle <= end_rad);
+			} else {
+				in_range = (angle >= start_rad) && (angle <= end_rad);
+			}
+
+			if (in_range) {
+				// Calculate pixel position (0° is at 3 o'clock)
+				int x = center.x + (int)(r * cos(angle));
+				int y = center.y + (int)(r * sin(angle));
+
+				set_pixel(x, y, pixel);
+			}
+		}
+	}
+}
+
+static void renderer_draw_circle(mu_Vec2 center, int radius, mu_Color color)
+{
+	uint32_t pixel = color_to_pixel(color);
+	int cx = center.x;
+	int cy = center.y;
+
+	int x = radius;
+	int y = 0;
+	int err = 1 - x;
+
+	while (x >= y) {
+		// For each "row band" of y, draw horizontal spans across the circle
+		for (int i = cx - x; i <= cx + x; i++) {
+			set_pixel(i, cy + y, pixel);
+			set_pixel(i, cy - y, pixel);
+		}
+		for (int i = cx - y; i <= cx + y; i++) {
+			set_pixel(i, cy + x, pixel);
+			set_pixel(i, cy - x, pixel);
+		}
+
+		y++;
+		if (err < 0) {
+			err += 2 * y + 1;
+		} else {
+			x--;
+			err += 2 * (y - x + 1);
+		}
+	}
+}
+#endif
+
 void mu_set_bg_color(mu_Color color)
 {
 	bg_color = color;
@@ -525,6 +633,20 @@ static void microui_loop_work(struct k_work *work)
 		case MU_COMMAND_CLIP:
 			renderer_set_clip_rect(cmd->clip.rect);
 			break;
+#ifdef CONFIG_MICROUI_DRAW_EXTENSIONS
+		case MU_COMMAND_ARC:
+			renderer_draw_arc(cmd->arc.center, cmd->arc.radius, cmd->arc.thickness,
+					  cmd->arc.start_angle, cmd->arc.end_angle, cmd->arc.color);
+			break;
+		case MU_COMMAND_CIRCLE:
+			renderer_draw_circle(cmd->circle.center, cmd->circle.radius,
+					     cmd->circle.color);
+			break;
+		case MU_COMMAND_LINE:
+			renderer_draw_line(cmd->line.p0, cmd->line.p1, cmd->line.thickness,
+					   cmd->line.color);
+			break;
+#endif
 		}
 	}
 	renderer_present();
