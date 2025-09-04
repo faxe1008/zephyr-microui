@@ -46,6 +46,13 @@ config MICROUI_DISPLAY_REFRESH_PERIOD
       display is updated with new content. A lower value results in smoother animations
       but may increase power consumption.
 
+config MICROUI_LAZY_REDRAW
+    bool "Enable MicroUI lazy redraw"
+    default y
+    help
+      Enable lazy redraw in MicroUI. When enabled, the display is only updated when
+      there are changes to the content, reducing unnecessary redraws and saving power.
+
 config MICROUI_EVENT_LOOP_THREAD_PRIORITY
     int "MicroUI event loop thread priority"
     default 0
