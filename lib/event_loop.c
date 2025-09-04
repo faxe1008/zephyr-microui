@@ -606,6 +606,19 @@ mu_Context *mu_get_context(void)
 	return &mu_ctx;
 }
 
+static void reschedule_loop_work(struct k_work *work, int64_t current_time)
+{
+	int64_t render_time = k_uptime_get() - current_time;
+	int64_t wait_time = CONFIG_MICROUI_DISPLAY_REFRESH_PERIOD - render_time;
+
+	if (wait_time < 0) {
+		wait_time = 0;
+	}
+
+	k_work_schedule_for_queue(&mu_work_queue, k_work_delayable_from_work(work),
+				  K_MSEC(wait_time));
+}
+
 static void microui_loop_work(struct k_work *work)
 {
 	int64_t current_time = k_uptime_get();
@@ -615,6 +628,18 @@ static void microui_loop_work(struct k_work *work)
 	if (frame_cb) {
 		frame_cb(&mu_ctx);
 	}
+
+#ifdef CONFIG_MICROUI_LAZY_REDRAW
+	static mu_Id previous_command_hash;
+	mu_Id current_command_hash =
+		mu_get_id(&mu_ctx, &mu_ctx.command_list.items, mu_ctx.command_list.idx);
+
+	if (current_command_hash == previous_command_hash) {
+		reschedule_loop_work(work, current_time);
+		return;
+	}
+	previous_command_hash = current_command_hash;
+#endif /* CONFIG_MICROUI_LAZY_REDRAW */
 
 	renderer_clear(bg_color);
 	mu_Command *cmd = NULL;
@@ -650,16 +675,7 @@ static void microui_loop_work(struct k_work *work)
 		}
 	}
 	renderer_present();
-
-	int64_t render_time = k_uptime_get() - current_time;
-	int64_t wait_time = CONFIG_MICROUI_DISPLAY_REFRESH_PERIOD - render_time;
-
-	if (wait_time < 0) {
-		wait_time = 0;
-	}
-
-	k_work_schedule_for_queue(&mu_work_queue, k_work_delayable_from_work(work),
-				  K_MSEC(wait_time));
+	reschedule_loop_work(work, current_time);
 }
 
 static K_WORK_DELAYABLE_DEFINE(mu_loop_work, microui_loop_work);
