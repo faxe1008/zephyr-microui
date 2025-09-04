@@ -71,7 +71,6 @@ config MICROUI_EVENT_LOOP_STACK_SIZE
 
 config MICROUI_DRAW_EXTENSIONS
     bool "Enable MicroUI draw extensions"
-    default y
     help
       Enable additional extensions for MicroUI that provide extra functionality and
       features beyond the core library. Includes support for drawing circles and polygons.

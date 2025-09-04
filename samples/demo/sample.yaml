@@ -1,0 +1,66 @@
+sample:
+  name: MicroUI Demo
+  description: MicroUI immediate-mode GUI library demo showcasing various UI elements
+
+common:
+  filter: dt_chosen_enabled("zephyr,display")
+  harness: none
+  modules:
+    - microui
+  tags:
+    - samples
+    - display
+    - gui
+    - microui
+  integration_platforms:
+    - native_sim/native/64
+
+tests:
+  sample.modules.microui.demo.with_input:
+    filter: dt_chosen_enabled("zephyr,display") and dt_chosen_enabled("zephyr,touch")
+    extra_configs:
+      - CONFIG_MICROUI_INPUT=y
+
+  sample.modules.microui.demo.no_lazy_redraw:
+    extra_configs:
+      - CONFIG_MICROUI_LAZY_REDRAW=n
+
+  sample.modules.microui.demo.draw_extensions:
+    extra_configs:
+      - CONFIG_MICROUI_DRAW_EXTENSIONS=y
+
+  sample.modules.microui.demo.minimal:
+    extra_configs:
+      - CONFIG_MICROUI_INPUT=n
+      - CONFIG_MICROUI_TEXT_UTF8=n
+      - CONFIG_MICROUI_LAZY_REDRAW=y
+
+  sample.modules.microui.demo.cf_mono:
+    extra_configs:
+      - CONFIG_SDL_DISPLAY_DEFAULT_PIXEL_FORMAT_MONO01=y
+      - CONFIG_MICROUI_BITS_PER_PIXEL=1
+
+  sample.modules.microui.demo.cf_rgb565:
+    extra_configs:
+      - CONFIG_SDL_DISPLAY_DEFAULT_PIXEL_FORMAT_RGB_565=y
+      - CONFIG_MICROUI_BITS_PER_PIXEL=16
+
+  sample.modules.microui.demo.cf_argb8888:
+    extra_configs:
+      - CONFIG_SDL_DISPLAY_DEFAULT_PIXEL_FORMAT_ARGB_8888=y
+      - CONFIG_MICROUI_BITS_PER_PIXEL=32
+
+  sample.modules.microui.demo.cf_rgb888:
+    extra_configs:
+      - CONFIG_SDL_DISPLAY_DEFAULT_PIXEL_FORMAT_RGB_888=y
+      - CONFIG_MICROUI_BITS_PER_PIXEL=24
+
+  sample.modules.microui.demo.cf_l8:
+    extra_configs:
+      - CONFIG_SDL_DISPLAY_DEFAULT_PIXEL_FORMAT_L_8=y
+      - CONFIG_MICROUI_BITS_PER_PIXEL=8
+  
+  sample.modules.microui.demo.cf_al88:
+    extra_configs:
+      - CONFIG_SDL_DISPLAY_DEFAULT_PIXEL_FORMAT_AL_88=y
+      - CONFIG_MICROUI_BITS_PER_PIXEL=16
