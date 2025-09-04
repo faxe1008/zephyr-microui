@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <microui/microui.h>
 
 #define unused(x) ((void) (x))
@@ -218,12 +219,28 @@ void mu_set_focus(mu_Context *ctx, mu_Id id) {
 
 /* 32bit fnv-1a hash */
 #define HASH_INITIAL 2166136261
+#define PRIME 16777619u
 
 static void hash(mu_Id *hash, const void *data, int size) {
-  const unsigned char *p = data;
-  while (size--) {
-    *hash = (*hash ^ *p++) * 16777619;
+  const unsigned char *p = (const unsigned char*)data;
+  mu_Id h = *hash;
+
+  while (size >= 4) {
+      uint32_t v;
+      memcpy(&v, p, sizeof(v));
+      h ^= v;
+      h *= PRIME;
+      p += 4;
+      size -= 4;
   }
+
+  while (size > 0) {
+      h ^= *p++;
+      h *= PRIME;
+      --size;
+  }
+
+  *hash = h;
 }
 
 
