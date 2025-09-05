@@ -1,5 +1,6 @@
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/display.h>
+#include <zephyr/sys/byteorder.h>
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
@@ -129,11 +130,14 @@ static __always_inline uint32_t color_to_pixel(mu_Color color)
 	case PIXEL_FORMAT_ARGB_8888:
 		return (color.a << 24) | (color.r << 16) | (color.g << 8) | color.b;
 
-	case PIXEL_FORMAT_RGB_565:
-		return ((color.r & 0xF8) << 8) | ((color.g & 0xFC) << 3) | (color.b >> 3);
+	case PIXEL_FORMAT_RGB_565: {
+		uint16_t rgb565 =
+			((color.r & 0xF8) << 8) | ((color.g & 0xFC) << 3) | (color.b >> 3);
+		return sys_cpu_to_be16(rgb565);
+	}
 
 	case PIXEL_FORMAT_BGR_565:
-		return ((color.b & 0xF8) << 8) | ((color.g & 0xFC) << 3) | (color.r >> 3);
+		return ((color.r & 0xF8) << 8) | ((color.g & 0xFC) << 3) | (color.b >> 3);
 
 	case PIXEL_FORMAT_MONO01:
 	case PIXEL_FORMAT_MONO10: {
@@ -479,6 +483,7 @@ static void renderer_clear(mu_Color color)
 		for (int i = 0; i < DISPLAY_WIDTH * DISPLAY_HEIGHT; i++) {
 			buf32[i] = pixel;
 		}
+		break;
 	}
 	default:
 		for (int y = 0; y < DISPLAY_HEIGHT; y++) {
