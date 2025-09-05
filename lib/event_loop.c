@@ -628,7 +628,9 @@ static void microui_loop_work(struct k_work *work)
 {
 	int64_t current_time = k_uptime_get();
 
+#ifdef CONFIG_MICROUI_INPUT
 	mu_event_loop_handle_input_events();
+#endif /* CONFIG_MICROUI_INPUT */
 
 	if (frame_cb) {
 		frame_cb(&mu_ctx);
