@@ -53,9 +53,17 @@ config MICROUI_LAZY_REDRAW
       Enable lazy redraw in MicroUI. When enabled, the display is only updated when
       there are changes to the content, reducing unnecessary redraws and saving power.
 
+config MICROUI_EVENT_LOOP
+    bool "Enable MicroUI workqueue event loop"
+    default y
+    help
+      Enables a dedicated workqueue that runs the core update–draw logic,
+      while attempting to match the configured display refresh period.
+
 config MICROUI_EVENT_LOOP_THREAD_PRIORITY
     int "MicroUI event loop thread priority"
     default 0
+    depends on MICROUI_EVENT_LOOP
     help
       Set the priority of the MicroUI event loop thread. This determines how the
       event loop interacts with other threads in the system. A higher priority means
@@ -64,6 +72,7 @@ config MICROUI_EVENT_LOOP_THREAD_PRIORITY
 config MICROUI_EVENT_LOOP_STACK_SIZE
     int "MicroUI event loop stack size"
     default 4096
+    depends on MICROUI_EVENT_LOOP
     help
       Set the stack size for the MicroUI event loop thread. This should be large enough
       to handle the expected workload of the event loop, including processing input events

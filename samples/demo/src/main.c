@@ -239,11 +239,18 @@ void process_frame(mu_Context *ctx)
 
 int main(int argc, char **argv)
 {
-	mu_event_loop_init(process_frame);
+	mu_setup(process_frame);
 
 	mu_Context *ctx = mu_get_context();
 	mu_set_font(ctx, &font);
 
+#ifdef CONFIG_MICROUI_EVENT_LOOP
 	mu_event_loop_start();
+#else
+	while (true) {
+		mu_handle_tick();
+		k_sleep(K_MSEC(16));
+	}
+#endif
 	return 0;
 }

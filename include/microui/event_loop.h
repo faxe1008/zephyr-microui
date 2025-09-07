@@ -31,7 +31,20 @@ typedef void (*mu_process_frame_cb)(mu_Context *ctx);
 mu_Context *mu_get_context(void);
 
 /**
- * @brief Initialize the MicroUI event loop subsystem.
+ * @brief Run one frame of the microui update–render loop.
+ *
+ * Calls the user-provided callback to update the UI state. If lazy redrawing
+ * is enabled, the current state is compared against the previous one: when no
+ * changes are detected, rendering is skipped; otherwise, the internal state is
+ * updated and the UI is redrawn.
+ *
+ * @return true  if a redraw was performed.
+ * @return false if no redraw was necessary.
+ */
+bool mu_handle_tick(void);
+
+/**
+ * @brief Initialize the MicroUI library.
  *
  * This must be called once before starting the event loop. It initializes the
  * renderer, the mu context and registers the provided per-frame callback.
@@ -44,21 +57,21 @@ mu_Context *mu_get_context(void);
  * @note After a successful call, use mu_event_loop_start() to begin the loop.
  * @see mu_event_loop_start, mu_event_loop_stop
  */
-int mu_event_loop_init(mu_process_frame_cb cb);
+int mu_setup(mu_process_frame_cb cb);
 
 /**
  * @brief Start the MicroUI event loop worker.
  *
  * Spawns/starts the work queue / worker thread that runs the periodic
  * render-and-event loop. The event loop will call the frame callback supplied
- * to mu_event_loop_init() on each refresh.
+ * to mu_setup() on each refresh.
  *
  * @return int 0 on success, negative errno on failure.
  *
  * @note The function asserts that a frame callback has been registered;
  *       in production builds where asserts may be disabled you should still
- *       ensure mu_event_loop_init() returned success before calling this.
- * @see mu_event_loop_init, mu_event_loop_stop
+ *       ensure mu_setup() returned success before calling this.
+ * @see mu_setup, mu_event_loop_stop
  */
 int mu_event_loop_start(void);
 

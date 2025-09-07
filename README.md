@@ -58,7 +58,7 @@ void process_frame(mu_Context *ctx)
 int main(void)
 {
     // Initialize the MicroUI event loop
-    mu_event_loop_init(process_frame);
+    mu_setup(process_frame);
 
     // Get the MicroUI context and set the font
     mu_Context *ctx = mu_get_context();

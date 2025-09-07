@@ -35,8 +35,10 @@ static mu_Rect clip_rect = {0, 0, 0, 0};
 static bool has_clip_rect = false;
 
 /* Work queue and work queue thread */
+#ifdef CONFIG_MICROUI_EVENT_LOOP
 static struct k_work_q mu_work_queue;
 static K_KERNEL_STACK_DEFINE(mu_work_stack, CONFIG_MICROUI_EVENT_LOOP_STACK_SIZE);
+#endif /* CONFIG_MICROUI_EVENT_LOOP */
 static volatile mu_process_frame_cb frame_cb;
 
 static __always_inline const struct FontGlyph *find_glyph(const struct Font *font,
@@ -611,23 +613,8 @@ mu_Context *mu_get_context(void)
 	return &mu_ctx;
 }
 
-static void reschedule_loop_work(struct k_work *work, int64_t current_time)
+bool mu_handle_tick(void)
 {
-	int64_t render_time = k_uptime_get() - current_time;
-	int64_t wait_time = CONFIG_MICROUI_DISPLAY_REFRESH_PERIOD - render_time;
-
-	if (wait_time < 0) {
-		wait_time = 0;
-	}
-
-	k_work_schedule_for_queue(&mu_work_queue, k_work_delayable_from_work(work),
-				  K_MSEC(wait_time));
-}
-
-static void microui_loop_work(struct k_work *work)
-{
-	int64_t current_time = k_uptime_get();
-
 #ifdef CONFIG_MICROUI_INPUT
 	mu_event_loop_handle_input_events();
 #endif /* CONFIG_MICROUI_INPUT */
@@ -642,8 +629,7 @@ static void microui_loop_work(struct k_work *work)
 		mu_get_id(&mu_ctx, &mu_ctx.command_list.items, mu_ctx.command_list.idx);
 
 	if (current_command_hash == previous_command_hash) {
-		reschedule_loop_work(work, current_time);
-		return;
+		return false;
 	}
 	previous_command_hash = current_command_hash;
 #endif /* CONFIG_MICROUI_LAZY_REDRAW */
@@ -682,28 +668,29 @@ static void microui_loop_work(struct k_work *work)
 		}
 	}
 	renderer_present();
-	reschedule_loop_work(work, current_time);
+	return true;
+}
+
+#ifdef CONFIG_MICROUI_EVENT_LOOP
+
+static void microui_loop_work(struct k_work *work)
+{
+	int64_t current_time = k_uptime_get();
+
+	mu_handle_tick();
+
+	int64_t render_time = k_uptime_get() - current_time;
+	int64_t wait_time = CONFIG_MICROUI_DISPLAY_REFRESH_PERIOD - render_time;
+
+	if (wait_time < 0) {
+		wait_time = 0;
+	}
+
+	k_work_schedule_for_queue(&mu_work_queue, k_work_delayable_from_work(work),
+				  K_MSEC(wait_time));
 }
 
 static K_WORK_DELAYABLE_DEFINE(mu_loop_work, microui_loop_work);
-
-int mu_event_loop_init(mu_process_frame_cb cb)
-{
-	if (!cb) {
-		return -EINVAL;
-	}
-
-	frame_cb = cb;
-	renderer_init();
-
-	mu_init(&mu_ctx);
-	mu_ctx.text_width = renderer_get_text_width;
-	mu_ctx.text_height = renderer_get_text_height;
-
-	k_work_queue_init(&mu_work_queue);
-
-	return 0;
-}
 
 int mu_event_loop_start(void)
 {
@@ -717,4 +704,26 @@ int mu_event_loop_start(void)
 int mu_event_loop_stop(void)
 {
 	return k_work_queue_stop(&mu_work_queue, K_FOREVER);
+}
+
+#endif /* CONFIG_MICROUI_EVENT_LOOP */
+
+int mu_setup(mu_process_frame_cb cb)
+{
+	if (!cb) {
+		return -EINVAL;
+	}
+
+	frame_cb = cb;
+	renderer_init();
+
+	mu_init(&mu_ctx);
+	mu_ctx.text_width = renderer_get_text_width;
+	mu_ctx.text_height = renderer_get_text_height;
+
+#ifdef CONFIG_MICROUI_EVENT_LOOP
+	k_work_queue_init(&mu_work_queue);
+#endif /* CONFIG_MICROUI_EVENT_LOOP */
+
+	return 0;
 }
