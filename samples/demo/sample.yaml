@@ -64,3 +64,9 @@ tests:
     extra_configs:
       - CONFIG_SDL_DISPLAY_DEFAULT_PIXEL_FORMAT_AL_88=y
       - CONFIG_MICROUI_BITS_PER_PIXEL=16
+
+  sample.modules.microui.demo.no_event_loop:
+    extra_configs:
+      - CONFIG_SDL_DISPLAY_DEFAULT_PIXEL_FORMAT_MONO01=y
+      - CONFIG_MICROUI_BITS_PER_PIXEL=1
+      - CONFIG_MICROUI_EVENT_LOOP=n
