@@ -1,0 +1,38 @@
+common:
+  timeout: 1200
+  tags:
+    - display
+    - gui
+tests:
+  libraries.gui.microui.performance.rgb888:
+    platform_allow:
+      - qemu_x86
+      - qemu_cortex_r5
+    integration_platforms:
+      - qemu_x86
+      - qemu_cortex_r5
+    extra_configs:
+      - CONFIG_DUMMY_DISPLAY_PIXEL_FORMAT_RGB_888=y
+      - CONFIG_MICROUI_BITS_PER_PIXEL=24
+
+  libraries.gui.microui.performance.rgb565:
+    platform_allow:
+      - qemu_x86
+      - qemu_cortex_r5
+    integration_platforms:
+      - qemu_x86
+      - qemu_cortex_r5
+    extra_configs:
+      - CONFIG_DUMMY_DISPLAY_PIXEL_FORMAT_RGB_565=y
+      - CONFIG_MICROUI_BITS_PER_PIXEL=16
+
+  libraries.gui.microui.performance.mono:
+    platform_allow:
+      - qemu_x86
+      - qemu_cortex_r5
+    integration_platforms:
+      - qemu_x86
+      - qemu_cortex_r5
+    extra_configs:
+      - CONFIG_DUMMY_DISPLAY_PIXEL_FORMAT_MONO01=y
+      - CONFIG_MICROUI_BITS_PER_PIXEL=1
