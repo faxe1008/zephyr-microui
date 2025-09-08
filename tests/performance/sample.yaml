@@ -14,6 +14,7 @@ tests:
     extra_configs:
       - CONFIG_DUMMY_DISPLAY_PIXEL_FORMAT_RGB_888=y
       - CONFIG_MICROUI_BITS_PER_PIXEL=24
+      - CONFIG_MICROUI_RENDER_RGB_888=y
 
   libraries.gui.microui.performance.rgb565:
     platform_allow:
@@ -25,6 +26,7 @@ tests:
     extra_configs:
       - CONFIG_DUMMY_DISPLAY_PIXEL_FORMAT_RGB_565=y
       - CONFIG_MICROUI_BITS_PER_PIXEL=16
+      - CONFIG_MICROUI_RENDER_RGB_565=y
 
   libraries.gui.microui.performance.mono:
     platform_allow:
@@ -36,3 +38,4 @@ tests:
     extra_configs:
       - CONFIG_DUMMY_DISPLAY_PIXEL_FORMAT_MONO01=y
       - CONFIG_MICROUI_BITS_PER_PIXEL=1
+      - CONFIG_MICROUI_RENDER_MONO=y

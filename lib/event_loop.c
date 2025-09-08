@@ -123,41 +123,183 @@ static __always_inline uint8_t luminance(mu_Color color)
 	return (299 * color.r + 587 * color.g + 114 * color.b) / 1000;
 }
 
+#define ENABLED_CF_COUNT                                                                           \
+	IS_ENABLED(CONFIG_MICROUI_RENDER_RGB_888) + IS_ENABLED(CONFIG_MICROUI_RENDER_ARGB_8888) +  \
+		IS_ENABLED(CONFIG_MICROUI_RENDER_RGB_565) +                                        \
+		IS_ENABLED(CONFIG_MICROUI_RENDER_BGR_565) +                                        \
+		IS_ENABLED(CONFIG_MICROUI_RENDER_MONO) + IS_ENABLED(CONFIG_MICROUI_RENDER_L_8) +   \
+		IS_ENABLED(CONFIG_MICROUI_RENDER_AL_88)
+
+#ifdef CONFIG_MICROUI_RENDER_RGB_888
+static __always_inline uint32_t color_to_pixel_rgb888(mu_Color color)
+{
+	return (color.r << 16) | (color.g << 8) | color.b;
+}
+
+static __always_inline void set_pixel_rgb888(int x, int y, uint32_t pixel)
+{
+	int index = (y * DISPLAY_WIDTH + x) * 3;
+	display_buffer[index + 0] = (pixel >> 16) & 0xFF; // R
+	display_buffer[index + 1] = (pixel >> 8) & 0xFF;  // G
+	display_buffer[index + 2] = pixel & 0xFF;         // B
+}
+#endif
+
+#ifdef CONFIG_MICROUI_RENDER_ARGB_8888
+static __always_inline uint32_t color_to_pixel_argb8888(mu_Color color)
+{
+	return (color.a << 24) | (color.r << 16) | (color.g << 8) | color.b;
+}
+
+static __always_inline void set_pixel_argb8888(int x, int y, uint32_t pixel)
+{
+	int index = (y * DISPLAY_WIDTH + x) * 4;
+	uint32_t *p = (uint32_t *)(display_buffer + index);
+	*p = pixel;
+}
+#endif
+
+#ifdef CONFIG_MICROUI_RENDER_RGB_565
+static __always_inline uint32_t color_to_pixel_rgb565(mu_Color color)
+{
+	uint16_t rgb565 = ((color.r & 0xF8) << 8) | ((color.g & 0xFC) << 3) | (color.b >> 3);
+	return sys_cpu_to_be16(rgb565);
+}
+
+static __always_inline void set_pixel_rgb565(int x, int y, uint32_t pixel)
+{
+	int index = (y * DISPLAY_WIDTH + x) * 2;
+	uint16_t *p = (uint16_t *)(display_buffer + index);
+	*p = (uint16_t)pixel;
+}
+#endif
+
+#ifdef CONFIG_MICROUI_RENDER_BGR_565
+static __always_inline uint32_t color_to_pixel_bgr565(mu_Color color)
+{
+	return ((color.b & 0xF8) << 8) | ((color.g & 0xFC) << 3) | (color.r >> 3);
+}
+
+static __always_inline void set_pixel_bgr565(int x, int y, uint32_t pixel)
+{
+	int index = (y * DISPLAY_WIDTH + x) * 2;
+	uint16_t *p = (uint16_t *)(display_buffer + index);
+	*p = (uint16_t)pixel;
+}
+#endif
+
+#if IS_ENABLED(CONFIG_MICROUI_RENDER_MONO)
+static __always_inline uint32_t color_to_pixel_mono(mu_Color color)
+{
+	uint8_t luma = luminance(color);
+	return (luma > 127) ? 0xFF : 0;
+}
+
+static __always_inline void set_pixel_mono(int x, int y, uint32_t pixel)
+{
+	uint8_t *buf;
+	uint8_t bit;
+
+	if (display_caps.screen_info & SCREEN_INFO_MONO_VTILED) {
+		buf = display_buffer + x + (y >> 3) * DISPLAY_WIDTH;
+		bit = (display_caps.screen_info & SCREEN_INFO_MONO_MSB_FIRST) ? (7 - (y & 7))
+									      : (y & 7);
+	} else {
+		buf = display_buffer + (x >> 3) + y * (DISPLAY_WIDTH >> 3);
+		bit = (display_caps.screen_info & SCREEN_INFO_MONO_MSB_FIRST) ? (7 - (x & 7))
+									      : (x & 7);
+	}
+
+	if (pixel) {
+		*buf |= BIT(bit);
+	} else {
+		*buf &= ~BIT(bit);
+	}
+}
+#endif
+
+#if IS_ENABLED(CONFIG_MICROUI_RENDER_L_8)
+static __always_inline uint32_t color_to_pixel_l8(mu_Color color)
+{
+	return luminance(color);
+}
+
+static __always_inline void set_pixel_l8(int x, int y, uint32_t pixel)
+{
+	display_buffer[y * DISPLAY_WIDTH + x] = pixel;
+}
+#endif
+
+#if IS_ENABLED(CONFIG_MICROUI_RENDER_AL_88)
+static __always_inline uint32_t color_to_pixel_al88(mu_Color color)
+{
+	return (color.a << 8) | luminance(color);
+}
+
+static __always_inline void set_pixel_al88(int x, int y, uint32_t pixel)
+{
+	int index = (y * DISPLAY_WIDTH + x) * 2;
+	uint16_t *p = (uint16_t *)(display_buffer + index);
+	*p = (uint16_t)pixel;
+}
+#endif
+
 static __always_inline uint32_t color_to_pixel(mu_Color color)
 {
+#if ENABLED_CF_COUNT == 1
+#if defined(CONFIG_MICROUI_RENDER_RGB_888)
+	return color_to_pixel_rgb888(color);
+#elif defined(CONFIG_MICROUI_RENDER_ARGB_8888)
+	return color_to_pixel_argb8888(color);
+#elif defined(CONFIG_MICROUI_RENDER_RGB_565)
+	return color_to_pixel_rgb565(color);
+#elif defined(CONFIG_MICROUI_RENDER_BGR_565)
+	return color_to_pixel_bgr565(color);
+#elif defined(CONFIG_MICROUI_RENDER_MONO)
+	return color_to_pixel_mono(color);
+#elif defined(CONFIG_MICROUI_RENDER_L_8)
+	return color_to_pixel_l8(color);
+#elif defined(CONFIG_MICROUI_RENDER_AL_88)
+	return color_to_pixel_al88(color);
+#endif
+#else
 	switch (display_caps.current_pixel_format) {
+#ifdef CONFIG_MICROUI_RENDER_RGB_888
 	case PIXEL_FORMAT_RGB_888:
-		return (color.r << 16) | (color.g << 8) | color.b;
-
+		return color_to_pixel_rgb888(color);
+#endif
+#ifdef CONFIG_MICROUI_RENDER_ARGB_8888
 	case PIXEL_FORMAT_ARGB_8888:
-		return (color.a << 24) | (color.r << 16) | (color.g << 8) | color.b;
-
-	case PIXEL_FORMAT_RGB_565: {
-		uint16_t rgb565 =
-			((color.r & 0xF8) << 8) | ((color.g & 0xFC) << 3) | (color.b >> 3);
-		return sys_cpu_to_be16(rgb565);
-	}
-
+		return color_to_pixel_argb8888(color);
+#endif
+#ifdef CONFIG_MICROUI_RENDER_RGB_565
+	case PIXEL_FORMAT_RGB_565:
+		return color_to_pixel_rgb565(color);
+#endif
+#ifdef CONFIG_MICROUI_RENDER_BGR_565
 	case PIXEL_FORMAT_BGR_565:
-		return ((color.r & 0xF8) << 8) | ((color.g & 0xFC) << 3) | (color.b >> 3);
-
+		return color_to_pixel_bgr565(color);
+#endif
+#ifdef CONFIG_MICROUI_RENDER_MONO
 	case PIXEL_FORMAT_MONO01:
-	case PIXEL_FORMAT_MONO10: {
-		uint8_t luma = luminance(color);
-		return (luma > 127) ? 0xFF : 0;
-	}
-
+	case PIXEL_FORMAT_MONO10:
+		return color_to_pixel_mono(color);
+#endif
+#ifdef CONFIG_MICROUI_RENDER_L_8
 	case PIXEL_FORMAT_L_8:
-		return luminance(color);
+		return color_to_pixel_l8(color);
+#endif
+#ifdef CONFIG_MICROUI_RENDER_AL_88
 	case PIXEL_FORMAT_AL_88:
-		return (color.a << 8) | luminance(color);
+		return color_to_pixel_al88(color);
+#endif
 	default:
 		return 0;
 	}
-	return 0;
+#endif
 }
 
-static void set_pixel(int x, int y, uint32_t pixel)
+static __always_inline void set_pixel(int x, int y, uint32_t pixel)
 {
 	if (x < 0 || y < 0 || x >= DISPLAY_WIDTH || y >= DISPLAY_HEIGHT) {
 		return;
@@ -170,61 +312,62 @@ static void set_pixel(int x, int y, uint32_t pixel)
 		}
 	}
 
+#if ENABLED_CF_COUNT == 1
+#if defined(CONFIG_MICROUI_RENDER_RGB_888)
+	set_pixel_rgb888(x, y, pixel);
+#elif defined(CONFIG_MICROUI_RENDER_ARGB_8888)
+	set_pixel_argb8888(x, y, pixel);
+#elif defined(CONFIG_MICROUI_RENDER_RGB_565)
+	set_pixel_rgb565(x, y, pixel);
+#elif defined(CONFIG_MICROUI_RENDER_BGR_565)
+	set_pixel_bgr565(x, y, pixel);
+#elif defined(CONFIG_MICROUI_RENDER_MONO)
+	set_pixel_mono(x, y, pixel);
+#elif defined(CONFIG_MICROUI_RENDER_L_8)
+	set_pixel_l8(x, y, pixel);
+#elif defined(CONFIG_MICROUI_RENDER_AL_88)
+	set_pixel_al88(x, y, pixel);
+#endif
+#else
 	switch (display_caps.current_pixel_format) {
-	case PIXEL_FORMAT_RGB_888: {
-		int index = (y * DISPLAY_WIDTH + x) * 3;
-		display_buffer[index + 0] = (pixel >> 16) & 0xFF; // R
-		display_buffer[index + 1] = (pixel >> 8) & 0xFF;  // G
-		display_buffer[index + 2] = pixel & 0xFF;         // B
+#ifdef CONFIG_MICROUI_RENDER_RGB_888
+	case PIXEL_FORMAT_RGB_888:
+		set_pixel_rgb888(x, y, pixel);
 		break;
-	}
-
-	case PIXEL_FORMAT_ARGB_8888: {
-		int index = (y * DISPLAY_WIDTH + x) * 4;
-		uint32_t *p = (uint32_t *)(display_buffer + index);
-		*p = pixel;
+#endif
+#ifdef CONFIG_MICROUI_RENDER_ARGB_8888
+	case PIXEL_FORMAT_ARGB_8888:
+		set_pixel_argb8888(x, y, pixel);
 		break;
-	}
-
-	case PIXEL_FORMAT_AL_88:
+#endif
+#ifdef CONFIG_MICROUI_RENDER_RGB_565
 	case PIXEL_FORMAT_RGB_565:
-	case PIXEL_FORMAT_BGR_565: {
-		int index = (y * DISPLAY_WIDTH + x) * 2;
-		uint16_t *p = (uint16_t *)(display_buffer + index);
-		*p = (uint16_t)pixel;
+		set_pixel_rgb565(x, y, pixel);
 		break;
-	}
-
+#endif
+#ifdef CONFIG_MICROUI_RENDER_BGR_565
+	case PIXEL_FORMAT_BGR_565:
+		set_pixel_bgr565(x, y, pixel);
+		break;
+#endif
+#ifdef CONFIG_MICROUI_RENDER_MONO
 	case PIXEL_FORMAT_MONO01:
-	case PIXEL_FORMAT_MONO10: {
-		uint8_t *buf;
-		uint8_t bit;
-
-		if (display_caps.screen_info & SCREEN_INFO_MONO_VTILED) {
-			buf = display_buffer + x + (y >> 3) * DISPLAY_WIDTH;
-			bit = (display_caps.screen_info & SCREEN_INFO_MONO_MSB_FIRST)
-				      ? (7 - (y & 7))
-				      : (y & 7);
-		} else {
-			buf = display_buffer + (x >> 3) + y * (DISPLAY_WIDTH >> 3);
-			bit = (display_caps.screen_info & SCREEN_INFO_MONO_MSB_FIRST)
-				      ? (7 - (x & 7))
-				      : (x & 7);
-		}
-
-		if (pixel) {
-			*buf |= BIT(bit);
-		} else {
-			*buf &= ~BIT(bit);
-		}
+	case PIXEL_FORMAT_MONO10:
+		set_pixel_mono(x, y, pixel);
 		break;
-	}
-
-	case PIXEL_FORMAT_L_8: {
-		display_buffer[y * DISPLAY_WIDTH + x] = pixel;
+#endif
+#ifdef CONFIG_MICROUI_RENDER_L_8
+	case PIXEL_FORMAT_L_8:
+		set_pixel_l8(x, y, pixel);
 		break;
+#endif
+#ifdef CONFIG_MICROUI_RENDER_AL_88
+	case PIXEL_FORMAT_AL_88:
+		set_pixel_al88(x, y, pixel);
+		break;
+#endif
 	}
-	}
+#endif
 }
 
 static void renderer_draw_line(mu_Vec2 p0, mu_Vec2 p1, uint8_t thickness, mu_Color color)

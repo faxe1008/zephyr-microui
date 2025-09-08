@@ -1,0 +1,68 @@
+choice DUMMY_DISPLAY_COLOR_FORMAT
+    prompt "Dummy display color format"
+    default DUMMY_DISPLAY_PIXEL_FORMAT_RGB_888
+    help
+      The color format used by the dummy display driver.
+
+config DUMMY_DISPLAY_PIXEL_FORMAT_RGB_888
+    bool "24-bit RGB"
+    help
+      24-bit RGB format.
+
+config DUMMY_DISPLAY_PIXEL_FORMAT_MONO01
+    bool "Monochrome (0=Black 1=White)"
+    help
+      Monochrome format where 0=Black and 1=White.
+
+config DUMMY_DISPLAY_PIXEL_FORMAT_MONO10
+    bool "Monochrome (1=Black 0=White)"
+    help
+      Monochrome format where 1=Black and 0=White.
+
+config DUMMY_DISPLAY_PIXEL_FORMAT_ARGB_8888
+    bool "32-bit ARGB"
+    help
+      32-bit ARGB format.
+
+config DUMMY_DISPLAY_PIXEL_FORMAT_RGB_565
+    bool "16-bit RGB 565"
+    help
+      16-bit RGB format packed into two bytes: 5 red bits [15:11], 6
+      green bits [10:5], 5 blue bits [4:0]. For example, in little-endian machine:
+      
+        7......0 15.....8
+      | gggBbbbb RrrrrGgg | ...
+
+config DUMMY_DISPLAY_PIXEL_FORMAT_BGR_565
+    bool "16-bit BGR 565"
+    help
+      16-bit RGB format packed into two bytes: 5 blue bits [15:11], 6
+      green bits [10:5], 5 red bits [4:0]. For example, in little-endian machine:
+      
+        7......0 15.....8
+      | gggRrrrr BbbbbGgg | ...
+
+config DUMMY_DISPLAY_PIXEL_FORMAT_L_8
+    bool "8-bit Grayscale/Luminance"
+    help
+      8-bit Grayscale/Luminance, equivalent to GRAY, GREY, GRAY8, Y8, R8, etc.
+
+config DUMMY_DISPLAY_PIXEL_FORMAT_AL_88
+    bool "8-bit Alpha + 8-bit Luminance"
+    help
+      8-bit Alpha + 8-bit Luminance format.
+
+endchoice
+
+config DUMMY_DISPLAY_COLOR_FORMAT
+    int
+    default 0 if DUMMY_DISPLAY_PIXEL_FORMAT_RGB_888
+    default 1 if DUMMY_DISPLAY_PIXEL_FORMAT_MONO01
+    default 2 if DUMMY_DISPLAY_PIXEL_FORMAT_MONO10
+    default 3 if DUMMY_DISPLAY_PIXEL_FORMAT_ARGB_8888
+    default 4 if DUMMY_DISPLAY_PIXEL_FORMAT_RGB_565
+    default 5 if DUMMY_DISPLAY_PIXEL_FORMAT_BGR_565
+    default 6 if DUMMY_DISPLAY_PIXEL_FORMAT_L_8
+    default 7 if DUMMY_DISPLAY_PIXEL_FORMAT_AL_88
+
+source "Kconfig.zephyr"

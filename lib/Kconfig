@@ -84,4 +84,46 @@ config MICROUI_DRAW_EXTENSIONS
       Enable additional extensions for MicroUI that provide extra functionality and
       features beyond the core library. Includes support for drawing circles and polygons.
 
+config MICROUI_RENDER_RGB_888
+    bool "Enable RGB 888 render support"
+    default y
+    help
+      Enable support for 24-bit RGB 888 pixel format rendering.
+
+config MICROUI_RENDER_ARGB_8888
+    bool "Enable ARGB 8888 render support"
+    default y
+    help
+      Enable support for 32-bit ARGB 8888 pixel format rendering.
+
+config MICROUI_RENDER_RGB_565
+    bool "Enable RGB 565 render support"
+    default y
+    help
+      Enable support for 16-bit RGB 565 pixel format rendering.
+
+config MICROUI_RENDER_BGR_565
+    bool "Enable BGR 565 render support"
+    default y
+    help
+      Enable support for 16-bit BGR 565 pixel format rendering.
+
+config MICROUI_RENDER_MONO
+    bool "Enable monochrome render support"
+    default y
+    help
+      Enable support for monochrome (1-bit) pixel format rendering.
+
+config MICROUI_RENDER_L_8
+    bool "Enable L8 render support"
+    default y
+    help
+      Enable support for 8-bit grayscale/luminance pixel format rendering.
+
+config MICROUI_RENDER_AL_88
+    bool "Enable AL 88 render support"
+    default y
+    help
+      Enable support for 8-bit alpha + 8-bit luminance pixel format rendering.
+
 endif
