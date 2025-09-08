@@ -1,0 +1,53 @@
+config MICROUI_COMMANDLIST_SIZE
+	int "MicroUI command list size"
+	default 262144
+	help
+	  Size of the command list buffer in bytes (256 * 1024).
+
+config MICROUI_ROOTLIST_SIZE
+	int "MicroUI root list size"
+	default 32
+	help
+	  Size of the root list.
+
+config MICROUI_CONTAINERSTACK_SIZE
+	int "MicroUI container stack size"
+	default 32
+	help
+	  Size of the container stack.
+
+config MICROUI_CLIPSTACK_SIZE
+	int "MicroUI clip stack size"
+	default 32
+	help
+	  Size of the clip stack.
+
+config MICROUI_IDSTACK_SIZE
+	int "MicroUI ID stack size"
+	default 32
+	help
+	  Size of the ID stack.
+
+config MICROUI_LAYOUTSTACK_SIZE
+	int "MicroUI layout stack size"
+	default 16
+	help
+	  Size of the layout stack.
+
+config MICROUI_CONTAINERPOOL_SIZE
+	int "MicroUI container pool size"
+	default 48
+	help
+	  Size of the container pool.
+
+config MICROUI_TREENODEPOOL_SIZE
+	int "MicroUI tree node pool size"
+	default 48
+	help
+	  Size of the tree node pool.
+
+config MICROUI_MAX_WIDTHS
+	int "MicroUI maximum widths"
+	default 16
+	help
+	  Maximum number of widths.

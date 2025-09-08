@@ -28,31 +28,6 @@ config MICROUI_TEXT_UTF8
       Enable support for UTF-8 encoded text in MicroUI. This allows the display
       of a wide range of characters and symbols.
 
-config MICROUI_BITS_PER_PIXEL
-    int "MicroUI bits per pixel"
-    default 16
-    range 1 32
-    help
-      Set the number of bits per pixel for MicroUI. This determines the color depth
-      of the display. A value of 16 is common for many displays, while higher values
-      can provide better color fidelity at the cost of increased memory usage.
-
-config MICROUI_DISPLAY_REFRESH_PERIOD
-    int "MicroUI display refresh period"
-    default 16
-    range 1 1000
-    help
-      Set the display refresh period in milliseconds. This determines how often the
-      display is updated with new content. A lower value results in smoother animations
-      but may increase power consumption.
-
-config MICROUI_LAZY_REDRAW
-    bool "Enable MicroUI lazy redraw"
-    default y
-    help
-      Enable lazy redraw in MicroUI. When enabled, the display is only updated when
-      there are changes to the content, reducing unnecessary redraws and saving power.
-
 config MICROUI_EVENT_LOOP
     bool "Enable MicroUI workqueue event loop"
     default y
@@ -78,52 +53,7 @@ config MICROUI_EVENT_LOOP_STACK_SIZE
       to handle the expected workload of the event loop, including processing input events
       and updating the display.
 
-config MICROUI_DRAW_EXTENSIONS
-    bool "Enable MicroUI draw extensions"
-    help
-      Enable additional extensions for MicroUI that provide extra functionality and
-      features beyond the core library. Includes support for drawing circles and polygons.
-
-config MICROUI_RENDER_RGB_888
-    bool "Enable RGB 888 render support"
-    default y
-    help
-      Enable support for 24-bit RGB 888 pixel format rendering.
-
-config MICROUI_RENDER_ARGB_8888
-    bool "Enable ARGB 8888 render support"
-    default y
-    help
-      Enable support for 32-bit ARGB 8888 pixel format rendering.
-
-config MICROUI_RENDER_RGB_565
-    bool "Enable RGB 565 render support"
-    default y
-    help
-      Enable support for 16-bit RGB 565 pixel format rendering.
-
-config MICROUI_RENDER_BGR_565
-    bool "Enable BGR 565 render support"
-    default y
-    help
-      Enable support for 16-bit BGR 565 pixel format rendering.
-
-config MICROUI_RENDER_MONO
-    bool "Enable monochrome render support"
-    default y
-    help
-      Enable support for monochrome (1-bit) pixel format rendering.
-
-config MICROUI_RENDER_L_8
-    bool "Enable L8 render support"
-    default y
-    help
-      Enable support for 8-bit grayscale/luminance pixel format rendering.
-
-config MICROUI_RENDER_AL_88
-    bool "Enable AL 88 render support"
-    default y
-    help
-      Enable support for 8-bit alpha + 8-bit luminance pixel format rendering.
+rsource "Kconfig.draw"
+rsource "Kconfig.memory"
 
 endif
