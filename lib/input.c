@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2025 Fabian Blatz <fabianblatz@gmail.com>
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 #include <microui/event_loop.h>
 #include <zephyr/kernel.h>
 #include <zephyr/input/input.h>

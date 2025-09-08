@@ -74,7 +74,3 @@ int main(void)
 ## Documentation
 
 For detailed API documentation and examples, refer to the original MicroUI documentation.
-
-## License
-
-This module follows the same licensing as the original MicroUI library.

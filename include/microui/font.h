@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025 Fabian Blatz <fabianblatz@gmail.com>
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 #ifndef ZEPHYR_MODULES_MICROUI_FONT_H_
 #define ZEPHYR_MODULES_MICROUI_FONT_H_
 

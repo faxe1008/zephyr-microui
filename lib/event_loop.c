@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2025 Fabian Blatz <fabianblatz@gmail.com>
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/display.h>
 #include <zephyr/sys/byteorder.h>
