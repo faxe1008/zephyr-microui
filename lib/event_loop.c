@@ -306,7 +306,7 @@ static __always_inline uint32_t color_to_pixel(mu_Color color)
 
 static __always_inline void set_pixel(int x, int y, uint32_t pixel)
 {
-	if (x < 0 || y < 0 || x >= DISPLAY_WIDTH || y >= DISPLAY_HEIGHT) {
+	if ((unsigned)x >= (unsigned)DISPLAY_WIDTH || (unsigned)y >= (unsigned)DISPLAY_HEIGHT) {
 		return;
 	}
 
