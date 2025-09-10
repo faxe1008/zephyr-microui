@@ -271,55 +271,48 @@ static __always_inline uint32_t color_to_pixel(mu_Color color)
 	return color_to_pixel_al88(color);
 #endif
 #else
-	switch (display_caps.current_pixel_format) {
 #ifdef CONFIG_MICROUI_RENDER_RGB_888
-	case PIXEL_FORMAT_RGB_888:
+	if (display_caps.current_pixel_format == PIXEL_FORMAT_RGB_888) {
 		return color_to_pixel_rgb888(color);
+	}
 #endif
 #ifdef CONFIG_MICROUI_RENDER_ARGB_8888
-	case PIXEL_FORMAT_ARGB_8888:
+	if (display_caps.current_pixel_format == PIXEL_FORMAT_ARGB_8888) {
 		return color_to_pixel_argb8888(color);
+	}
 #endif
 #ifdef CONFIG_MICROUI_RENDER_RGB_565
-	case PIXEL_FORMAT_RGB_565:
+	if (display_caps.current_pixel_format == PIXEL_FORMAT_RGB_565) {
 		return color_to_pixel_rgb565(color);
+	}
 #endif
 #ifdef CONFIG_MICROUI_RENDER_BGR_565
-	case PIXEL_FORMAT_BGR_565:
+	if (display_caps.current_pixel_format == PIXEL_FORMAT_BGR_565) {
 		return color_to_pixel_bgr565(color);
+	}
 #endif
 #ifdef CONFIG_MICROUI_RENDER_MONO
-	case PIXEL_FORMAT_MONO01:
-	case PIXEL_FORMAT_MONO10:
+	if (display_caps.current_pixel_format == PIXEL_FORMAT_MONO01 ||
+	    display_caps.current_pixel_format == PIXEL_FORMAT_MONO10) {
 		return color_to_pixel_mono(color);
+	}
 #endif
 #ifdef CONFIG_MICROUI_RENDER_L_8
-	case PIXEL_FORMAT_L_8:
+	if (display_caps.current_pixel_format == PIXEL_FORMAT_L_8) {
 		return color_to_pixel_l8(color);
+	}
 #endif
 #ifdef CONFIG_MICROUI_RENDER_AL_88
-	case PIXEL_FORMAT_AL_88:
+	if (display_caps.current_pixel_format == PIXEL_FORMAT_AL_88) {
 		return color_to_pixel_al88(color);
-#endif
-	default:
-		return 0;
 	}
+#endif
+	return 0;
 #endif
 }
 
-static __always_inline void set_pixel(int x, int y, uint32_t pixel)
+static __always_inline void set_pixel_unchecked(int x, int y, uint32_t pixel)
 {
-	if ((unsigned)x >= (unsigned)DISPLAY_WIDTH || (unsigned)y >= (unsigned)DISPLAY_HEIGHT) {
-		return;
-	}
-
-	if (likely(has_clip_rect)) {
-		if (x < clip_rect.x || y < clip_rect.y || x >= clip_rect.x + clip_rect.w ||
-		    y >= clip_rect.y + clip_rect.h) {
-			return;
-		}
-	}
-
 #if ENABLED_CF_COUNT == 1
 #if defined(CONFIG_MICROUI_RENDER_RGB_888)
 	set_pixel_rgb888(x, y, pixel);
@@ -337,45 +330,66 @@ static __always_inline void set_pixel(int x, int y, uint32_t pixel)
 	set_pixel_al88(x, y, pixel);
 #endif
 #else
-	switch (display_caps.current_pixel_format) {
 #ifdef CONFIG_MICROUI_RENDER_RGB_888
-	case PIXEL_FORMAT_RGB_888:
+	if (display_caps.current_pixel_format == PIXEL_FORMAT_RGB_888) {
 		set_pixel_rgb888(x, y, pixel);
-		break;
-#endif
-#ifdef CONFIG_MICROUI_RENDER_ARGB_8888
-	case PIXEL_FORMAT_ARGB_8888:
-		set_pixel_argb8888(x, y, pixel);
-		break;
-#endif
-#ifdef CONFIG_MICROUI_RENDER_RGB_565
-	case PIXEL_FORMAT_RGB_565:
-		set_pixel_rgb565(x, y, pixel);
-		break;
-#endif
-#ifdef CONFIG_MICROUI_RENDER_BGR_565
-	case PIXEL_FORMAT_BGR_565:
-		set_pixel_bgr565(x, y, pixel);
-		break;
-#endif
-#ifdef CONFIG_MICROUI_RENDER_MONO
-	case PIXEL_FORMAT_MONO01:
-	case PIXEL_FORMAT_MONO10:
-		set_pixel_mono(x, y, pixel);
-		break;
-#endif
-#ifdef CONFIG_MICROUI_RENDER_L_8
-	case PIXEL_FORMAT_L_8:
-		set_pixel_l8(x, y, pixel);
-		break;
-#endif
-#ifdef CONFIG_MICROUI_RENDER_AL_88
-	case PIXEL_FORMAT_AL_88:
-		set_pixel_al88(x, y, pixel);
-		break;
-#endif
+		return;
 	}
 #endif
+#ifdef CONFIG_MICROUI_RENDER_ARGB_8888
+	if (display_caps.current_pixel_format == PIXEL_FORMAT_ARGB_8888) {
+		set_pixel_argb8888(x, y, pixel);
+		return;
+	}
+#endif
+#ifdef CONFIG_MICROUI_RENDER_RGB_565
+	if (display_caps.current_pixel_format == PIXEL_FORMAT_RGB_565) {
+		set_pixel_rgb565(x, y, pixel);
+		return;
+	}
+#endif
+#ifdef CONFIG_MICROUI_RENDER_BGR_565
+	if (display_caps.current_pixel_format == PIXEL_FORMAT_BGR_565) {
+		set_pixel_bgr565(x, y, pixel);
+		return;
+	}
+#endif
+#ifdef CONFIG_MICROUI_RENDER_MONO
+	if (display_caps.current_pixel_format == PIXEL_FORMAT_MONO01 ||
+	    display_caps.current_pixel_format == PIXEL_FORMAT_MONO10) {
+		set_pixel_mono(x, y, pixel);
+		return;
+	}
+#endif
+#ifdef CONFIG_MICROUI_RENDER_L_8
+	if (display_caps.current_pixel_format == PIXEL_FORMAT_L_8) {
+		set_pixel_l8(x, y, pixel);
+		return;
+	}
+#endif
+#ifdef CONFIG_MICROUI_RENDER_AL_88
+	if (display_caps.current_pixel_format == PIXEL_FORMAT_AL_88) {
+		set_pixel_al88(x, y, pixel);
+		return;
+	}
+#endif
+#endif
+}
+
+static __always_inline void set_pixel(int x, int y, uint32_t pixel)
+{
+	if ((unsigned)x >= (unsigned)DISPLAY_WIDTH || (unsigned)y >= (unsigned)DISPLAY_HEIGHT) {
+		return;
+	}
+
+	if (likely(has_clip_rect)) {
+		if (x < clip_rect.x || y < clip_rect.y || x >= clip_rect.x + clip_rect.w ||
+		    y >= clip_rect.y + clip_rect.h) {
+			return;
+		}
+	}
+
+	set_pixel_unchecked(x, y, pixel);
 }
 
 static void renderer_draw_line(mu_Vec2 p0, mu_Vec2 p1, uint8_t thickness, mu_Color color)
