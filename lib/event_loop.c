@@ -709,36 +709,9 @@ static void renderer_set_clip_rect(mu_Rect rect)
 static void renderer_clear(mu_Color color)
 {
 	uint32_t pixel = color_to_pixel(color);
-
-	switch (display_caps.current_pixel_format) {
-	case PIXEL_FORMAT_AL_88:
-	case PIXEL_FORMAT_RGB_565:
-	case PIXEL_FORMAT_BGR_565: {
-		uint16_t pixel16 = (uint16_t)pixel;
-		uint16_t *buf16 = (uint16_t *)display_buffer;
-		for (int i = 0; i < DISPLAY_WIDTH * DISPLAY_HEIGHT; i++) {
-			buf16[i] = pixel16;
-		}
-		break;
-	}
-	case PIXEL_FORMAT_L_8:
-	case PIXEL_FORMAT_MONO01:
-	case PIXEL_FORMAT_MONO10: {
-		memset(display_buffer, (uint8_t)pixel, DISPLAY_BUFFER_SIZE);
-		break;
-	}
-	case PIXEL_FORMAT_ARGB_8888: {
-		uint32_t *buf32 = (uint32_t *)display_buffer;
-		for (int i = 0; i < DISPLAY_WIDTH * DISPLAY_HEIGHT; i++) {
-			buf32[i] = pixel;
-		}
-		break;
-	}
-	default:
-		for (int y = 0; y < DISPLAY_HEIGHT; y++) {
-			for (int x = 0; x < DISPLAY_WIDTH; x++) {
-				set_pixel(x, y, pixel);
-			}
+	for (int y = 0; y < DISPLAY_HEIGHT; y++) {
+		for (int x = 0; x < DISPLAY_WIDTH; x++) {
+			set_pixel_unchecked(x, y, pixel);
 		}
 	}
 }
