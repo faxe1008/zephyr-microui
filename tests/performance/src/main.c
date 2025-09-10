@@ -42,9 +42,20 @@ ZTEST(microui_render, test_text_render)
 	mu_Context *ctx = mu_get_context();
 	mu_set_font(ctx, &font);
 
+	int64_t start_time = k_uptime_get();
+
 	for (int i = 0; i < RENDER_COUNT; i++) {
 		mu_handle_tick();
 	}
+
+	int64_t end_time = k_uptime_get();
+	int64_t elapsed_ms = end_time - start_time;
+	double fps = (double)RENDER_COUNT / (elapsed_ms / 1000.0);
+
+	TC_PRINT("Text Rendering Test Results:\n");
+	TC_PRINT("Frames rendered: %d\n", RENDER_COUNT);
+	TC_PRINT("Time elapsed: %lld ms\n", elapsed_ms);
+	TC_PRINT("FPS: %.2f\n", fps);
 }
 
 void perf_basic_recolor(mu_Context *ctx)
@@ -66,10 +77,20 @@ void perf_basic_recolor(mu_Context *ctx)
 ZTEST(microui_render, test_recoloring)
 {
 	mu_setup(perf_basic_recolor);
+	int64_t start_time = k_uptime_get();
 
 	for (int i = 0; i < RENDER_COUNT; i++) {
 		mu_handle_tick();
 	}
+
+	int64_t end_time = k_uptime_get();
+	int64_t elapsed_ms = end_time - start_time;
+	double fps = (double)RENDER_COUNT / (elapsed_ms / 1000.0);
+
+	TC_PRINT("Recoloring Test Results:\n");
+	TC_PRINT("Frames rendered: %d\n", RENDER_COUNT);
+	TC_PRINT("Time elapsed: %lld ms\n", elapsed_ms);
+	TC_PRINT("FPS: %.2f\n", fps);
 }
 
 ZTEST_SUITE(microui_render, NULL, NULL, render_suite_before, NULL, NULL);
