@@ -138,7 +138,7 @@ static __always_inline uint8_t luminance(mu_Color color)
 #ifdef CONFIG_MICROUI_RENDER_RGB_888
 static __always_inline uint32_t color_to_pixel_rgb888(mu_Color color)
 {
-	return (color.r << 16) | (color.g << 8) | color.b;
+	return ((uint32_t)color.r << 16) | ((uint32_t)color.g << 8) | (uint32_t)color.b;
 }
 
 static __always_inline void set_pixel_rgb888(int x, int y, uint32_t pixel)
@@ -153,7 +153,8 @@ static __always_inline void set_pixel_rgb888(int x, int y, uint32_t pixel)
 #ifdef CONFIG_MICROUI_RENDER_ARGB_8888
 static __always_inline uint32_t color_to_pixel_argb8888(mu_Color color)
 {
-	return (color.a << 24) | (color.r << 16) | (color.g << 8) | color.b;
+	return ((uint32_t)color.a << 24) | ((uint32_t)color.r << 16) | ((uint32_t)color.g << 8) |
+	       (uint32_t)color.b;
 }
 
 static __always_inline void set_pixel_argb8888(int x, int y, uint32_t pixel)
@@ -167,7 +168,8 @@ static __always_inline void set_pixel_argb8888(int x, int y, uint32_t pixel)
 #ifdef CONFIG_MICROUI_RENDER_RGB_565
 static __always_inline uint32_t color_to_pixel_rgb565(mu_Color color)
 {
-	uint16_t rgb565 = ((color.r & 0xF8) << 8) | ((color.g & 0xFC) << 3) | (color.b >> 3);
+	uint16_t rgb565 = ((uint32_t)(color.r & 0xF8) << 8) | ((uint32_t)(color.g & 0xFC) << 3) |
+			  (uint32_t)(color.b >> 3);
 	return sys_cpu_to_be16(rgb565);
 }
 
@@ -182,7 +184,8 @@ static __always_inline void set_pixel_rgb565(int x, int y, uint32_t pixel)
 #ifdef CONFIG_MICROUI_RENDER_BGR_565
 static __always_inline uint32_t color_to_pixel_bgr565(mu_Color color)
 {
-	return ((color.b & 0xF8) << 8) | ((color.g & 0xFC) << 3) | (color.r >> 3);
+	return ((uint32_t)(color.b & 0xF8) << 8) | ((uint32_t)(color.g & 0xFC) << 3) |
+	       (uint32_t)(color.r >> 3);
 }
 
 static __always_inline void set_pixel_bgr565(int x, int y, uint32_t pixel)
@@ -238,7 +241,7 @@ static __always_inline void set_pixel_l8(int x, int y, uint32_t pixel)
 #if IS_ENABLED(CONFIG_MICROUI_RENDER_AL_88)
 static __always_inline uint32_t color_to_pixel_al88(mu_Color color)
 {
-	return (color.a << 8) | luminance(color);
+	return ((uint32_t)color.a << 8) | luminance(color);
 }
 
 static __always_inline void set_pixel_al88(int x, int y, uint32_t pixel)
