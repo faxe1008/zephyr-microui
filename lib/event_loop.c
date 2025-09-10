@@ -20,9 +20,11 @@ LOG_MODULE_REGISTER(microui_event_loop, LOG_LEVEL_INF);
 #define M_PI 3.14159265358979323846f
 #endif
 
-#define DISPLAY_NODE   DT_CHOSEN(zephyr_display)
-#define DISPLAY_WIDTH  DT_PROP(DISPLAY_NODE, width)
-#define DISPLAY_HEIGHT DT_PROP(DISPLAY_NODE, height)
+#define DISPLAY_NODE            DT_CHOSEN(zephyr_display)
+#define DISPLAY_WIDTH           DT_PROP(DISPLAY_NODE, width)
+#define DISPLAY_HEIGHT          DT_PROP(DISPLAY_NODE, height)
+#define DISPLAY_BYTES_PER_PIXEL (CONFIG_MICROUI_BITS_PER_PIXEL / 8)
+#define DISPLAY_STRIDE          (ROUND_UP(DISPLAY_WIDTH, 8) * DISPLAY_BYTES_PER_PIXEL)
 
 #define DISPLAY_BUFFER_SIZE                                                                        \
 	(CONFIG_MICROUI_BITS_PER_PIXEL * ROUND_UP(DISPLAY_WIDTH, 8) * DISPLAY_HEIGHT) / 8
@@ -482,10 +484,90 @@ static void renderer_init(void)
 static void renderer_draw_rect(mu_Rect rect, mu_Color color)
 {
 	uint32_t pixel = color_to_pixel(color);
-	for (int y = rect.y; y < rect.y + rect.h; y++) {
-		for (int x = rect.x; x < rect.x + rect.w; x++) {
-			set_pixel(x, y, pixel);
+	/* Check clipping first */
+	int clip_result = 0;
+	mu_Rect cr = clip_rect;
+	if (rect.x > cr.x + cr.w || rect.x + rect.w < cr.x || rect.y > cr.y + cr.h ||
+	    rect.y + rect.h < cr.y) {
+		return;
+	}
+	if (rect.x >= cr.x && rect.x + rect.w <= cr.x + cr.w && rect.y >= cr.y &&
+	    rect.y + rect.h <= cr.y + cr.h) {
+	} else {
+		clip_result = MU_CLIP_PART;
+	}
+
+	/* If partially clipped, intersect with clip rect */
+	if (clip_result == MU_CLIP_PART) {
+		int x1 = mu_max(rect.x, clip_rect.x);
+		int y1 = mu_max(rect.y, clip_rect.y);
+		int x2 = mu_min(rect.x + rect.w, clip_rect.x + clip_rect.w);
+		int y2 = mu_min(rect.y + rect.h, clip_rect.y + clip_rect.h);
+
+		if (x2 <= x1 || y2 <= y1) {
+			return; /* No valid area to draw */
 		}
+
+		rect.x = x1;
+		rect.y = y1;
+		rect.w = x2 - x1;
+		rect.h = y2 - y1;
+	}
+
+	/* Additional bounds checking against display dimensions */
+	if (rect.x >= DISPLAY_WIDTH || rect.y >= DISPLAY_HEIGHT || rect.x + rect.w <= 0 ||
+	    rect.y + rect.h <= 0) {
+		return;
+	}
+
+	/* Clamp to display bounds */
+	if (rect.x < 0) {
+		rect.w += rect.x;
+		rect.x = 0;
+	}
+	if (rect.y < 0) {
+		rect.h += rect.y;
+		rect.y = 0;
+	}
+	if (rect.x + rect.w > DISPLAY_WIDTH) {
+		rect.w = DISPLAY_WIDTH - rect.x;
+	}
+	if (rect.y + rect.h > DISPLAY_HEIGHT) {
+		rect.h = DISPLAY_HEIGHT - rect.y;
+	}
+
+	if (rect.w <= 0 || rect.h <= 0) {
+		return;
+	}
+
+#ifdef CONFIG_MICROUI_RENDER_MONO
+	if (display_caps.current_pixel_format == PIXEL_FORMAT_MONO01 ||
+	    display_caps.current_pixel_format == PIXEL_FORMAT_MONO10) {
+		for (int y = rect.y; y < rect.y + rect.h; y++) {
+			for (int x = rect.x; x < rect.x + rect.w; x++) {
+				set_pixel_unchecked(x, y, pixel);
+			}
+		}
+		return;
+	}
+#endif /* CONFIG_MICROUI_RENDER_MONO */
+
+	for (int x = rect.x; x < rect.x + rect.w; x++) {
+		set_pixel_unchecked(x, rect.y, pixel);
+	}
+	if (rect.h == 1) {
+		return;
+	}
+
+	/* Calculate source and destination pointers for memcpy */
+	uint8_t *src_row =
+		display_buffer + (rect.y * DISPLAY_STRIDE) + (rect.x * DISPLAY_BYTES_PER_PIXEL);
+	int row_bytes = rect.w * DISPLAY_BYTES_PER_PIXEL;
+
+	/* Copy first row to subsequent rows */
+	for (int y = 1; y < rect.h; y++) {
+		uint8_t *dst_row = src_row + (y * DISPLAY_STRIDE);
+		memcpy(dst_row, src_row, row_bytes);
 	}
 }
 
