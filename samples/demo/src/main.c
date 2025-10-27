@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <microui/event_loop.h>
+#include <microui/zmu.h>
 #include <microui/microui.h>
 #include <microui/font.h>
 #include <zephyr/kernel.h>

@@ -3,8 +3,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#ifndef ZEPHYR_MODULES_MICROUI_RENDERER_H_
-#define ZEPHYR_MODULES_MICROUI_RENDERER_H_
+#ifndef ZEPHYR_MODULES_MICROUI_ZMU_H_
+#define ZEPHYR_MODULES_MICROUI_ZMU_H_
 
 #ifdef __cplusplus
 extern "C" {
