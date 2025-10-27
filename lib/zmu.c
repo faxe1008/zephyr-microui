@@ -10,11 +10,11 @@
 #include <stdlib.h>
 #include <math.h>
 
-#include <microui/event_loop.h>
+#include <microui/zmu.h>
 #include <microui/font.h>
 
 #include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(microui_event_loop, LOG_LEVEL_INF);
+LOG_MODULE_REGISTER(microui_zmu, LOG_LEVEL_INF);
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846f

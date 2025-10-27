@@ -1,7 +1,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/ztest.h>
 #include <zephyr/drivers/display.h>
-#include <microui/event_loop.h>
+#include <microui/zmu.h>
 #include "montserrat_12.h"
 
 #define DISPLAY_NODE   DT_CHOSEN(zephyr_display)

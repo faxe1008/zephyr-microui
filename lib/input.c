@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <microui/event_loop.h>
+#include <microui/zmu.h>
 #include <zephyr/kernel.h>
 #include <zephyr/input/input.h>
 

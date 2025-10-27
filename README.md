@@ -24,7 +24,7 @@ This module provides the MicroUI library for Zephyr RTOS applications. MicroUI i
 ### Example Usage
 
 ```c
-#include <microui/event_loop.h>
+#include <microui/zmu.h>
 #include <microui/microui.h>
 #include <microui/font.h>
 
