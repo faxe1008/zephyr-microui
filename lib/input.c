@@ -28,10 +28,11 @@ K_MSGQ_DEFINE(input_events, sizeof(struct microui_input), 12, 4);
 static struct microui_input pending_input;
 static bool pending_input_valid = false;
 
-void mu_event_loop_handle_input_events(void)
+bool mu_handle_input_events(void)
 {
 	struct microui_input input_evt;
 	mu_Context *mu_ctx = mu_get_context();
+	bool events_handled = false;
 
 	/* If a button event was deferred last frame, handle it now so it becomes
 	   visible to mu_begin() in this frame. */
@@ -44,6 +45,7 @@ void mu_event_loop_handle_input_events(void)
 					 pending_input.mouse_button);
 		}
 		pending_input_valid = false;
+		events_handled = true;
 	}
 
 	/* Drain incoming events. We always apply moves immediately so the
@@ -51,6 +53,7 @@ void mu_event_loop_handle_input_events(void)
 	   defer the button change until the next call of this function. */
 	while (k_msgq_get(&input_events, &input_evt, K_NO_WAIT) == 0) {
 		mu_input_mousemove(mu_ctx, input_evt.x, input_evt.y);
+		events_handled = true;
 
 		if (input_evt.down || input_evt.up) {
 			/* Defer button event till next loop iteration (so it happens after
@@ -60,6 +63,8 @@ void mu_event_loop_handle_input_events(void)
 			break;
 		}
 	}
+
+	return events_handled;
 }
 
 static void input_callback(struct input_event *event, void *user_data)

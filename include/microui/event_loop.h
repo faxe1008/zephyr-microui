@@ -49,6 +49,25 @@ mu_Context *mu_get_context(void);
 bool mu_handle_tick(void);
 
 /**
+ * @brief Render the current MicroUI context to the display.
+ *
+ * This function issues the rendering commands to draw the current state of
+ * the MicroUI context to the display.
+ */
+void mu_render(void);
+
+/**
+ * @brief Check if a redraw is needed.
+ *
+ * This function checks whether the MicroUI context has changed since the last
+ * render.
+ *
+ * @return true  if a redraw is needed.
+ * @return false if no redraw is needed.
+ */
+bool mu_needs_redraw(void);
+
+/**
  * @brief Initialize the MicroUI library.
  *
  * This must be called once before starting the event loop. It initializes the
@@ -63,6 +82,8 @@ bool mu_handle_tick(void);
  * @see mu_event_loop_start, mu_event_loop_stop
  */
 int mu_setup(mu_process_frame_cb cb);
+
+#if defined(CONFIG_MICROUI_EVENT_LOOP) || defined(__DOXYGEN__)
 
 /**
  * @brief Start the MicroUI event loop worker.
@@ -93,6 +114,9 @@ int mu_event_loop_start(void);
  */
 int mu_event_loop_stop(void);
 
+#endif /* CONFIG_MICROUI_EVENT_LOOP */
+
+#if defined(CONFIG_MICROUI_INPUT) || defined(__DOXYGEN__)
 /**
  * @brief Poll and handle input events for MicroUI.
  *
@@ -103,8 +127,13 @@ int mu_event_loop_stop(void);
  * @note This is intended to be called from the event loop worker; if you
  *       call it from another thread ensure any required synchronization.
  * @see mu_event_loop_start
+ *
+ * @return true if any input events were handled.
+ * @return false if no input events were available.
  */
-void mu_event_loop_handle_input_events(void);
+bool mu_handle_input_events(void);
+
+#endif /* CONFIG_MICROUI_INPUT */
 
 /**
  * @brief Set the background color for MicroUI.
