@@ -833,27 +833,8 @@ mu_Context *mu_get_context(void)
 	return &mu_ctx;
 }
 
-bool mu_handle_tick(void)
+void mu_render(void)
 {
-#ifdef CONFIG_MICROUI_INPUT
-	mu_event_loop_handle_input_events();
-#endif /* CONFIG_MICROUI_INPUT */
-
-	if (frame_cb) {
-		frame_cb(&mu_ctx);
-	}
-
-#ifdef CONFIG_MICROUI_LAZY_REDRAW
-	static mu_Id previous_command_hash;
-	mu_Id current_command_hash =
-		mu_get_id(&mu_ctx, &mu_ctx.command_list.items, mu_ctx.command_list.idx);
-
-	if (current_command_hash == previous_command_hash) {
-		return false;
-	}
-	previous_command_hash = current_command_hash;
-#endif /* CONFIG_MICROUI_LAZY_REDRAW */
-
 	renderer_clear(bg_color);
 	mu_Command *cmd = NULL;
 	while (mu_next_command(&mu_ctx, &cmd)) {
@@ -888,6 +869,40 @@ bool mu_handle_tick(void)
 		}
 	}
 	renderer_present();
+}
+
+bool mu_needs_redraw(void)
+{
+	static mu_Id previous_command_hash;
+	mu_Id current_command_hash =
+		mu_get_id(&mu_ctx, &mu_ctx.command_list.items, mu_ctx.command_list.idx);
+
+	if (current_command_hash == previous_command_hash) {
+		return false;
+	}
+	previous_command_hash = current_command_hash;
+
+	return true;
+}
+
+bool mu_handle_tick(void)
+{
+#ifdef CONFIG_MICROUI_INPUT
+	mu_handle_input_events();
+#endif /* CONFIG_MICROUI_INPUT */
+
+	if (frame_cb) {
+		frame_cb(&mu_ctx);
+	}
+
+#ifdef CONFIG_MICROUI_LAZY_REDRAW
+	if (!mu_needs_redraw()) {
+		return false;
+	}
+#endif /* CONFIG_MICROUI_LAZY_REDRAW */
+
+	mu_render();
+
 	return true;
 }
 
