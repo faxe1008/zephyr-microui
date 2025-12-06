@@ -700,10 +700,10 @@ static int renderer_get_text_height(mu_Font f)
 	return font->height;
 }
 
-static void renderer_set_clip_rect(mu_Rect rect)
+static void renderer_set_clip_rect(mu_Rect rect, int opt)
 {
 	clip_rect = rect;
-	has_clip_rect = true;
+	has_clip_rect = (opt & MU_CLIPPING_ENABLED);
 }
 
 static void renderer_clear(mu_Color color)
@@ -850,7 +850,7 @@ void mu_render(void)
 			renderer_draw_icon(cmd->icon.id, cmd->icon.rect, cmd->icon.color);
 			break;
 		case MU_COMMAND_CLIP:
-			renderer_set_clip_rect(cmd->clip.rect);
+			renderer_set_clip_rect(cmd->clip.rect, cmd->clip.opt);
 			break;
 #ifdef CONFIG_MICROUI_DRAW_EXTENSIONS
 		case MU_COMMAND_ARC:
