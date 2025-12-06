@@ -101,13 +101,17 @@ static void input_callback(struct input_event *event, void *user_data)
 		}
 		mouse_pressed = event->value;
 		break;
+	default:
+		return;
 	}
 
 	if (!event->sync) {
 		return;
 	}
 
-	k_msgq_put(&input_events, &mu_input, K_FOREVER);
+	if (k_msgq_put(&input_events, &mu_input, K_NO_WAIT) != 0) {
+		LOG_WRN("Failed to put message in queue");
+	}
 }
 
 INPUT_CALLBACK_DEFINE(TOUCH_DEV, input_callback, NULL);
