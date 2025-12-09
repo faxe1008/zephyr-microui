@@ -4,6 +4,30 @@ import os
 import math
 
 
+def sanitize_c_identifier(name):
+    """Convert a string to a valid C identifier by replacing invalid characters with underscores."""
+    if not name:
+        return "font"
+
+    # Replace invalid characters with underscores
+    sanitized = ""
+    for i, char in enumerate(name):
+        if char.isalnum() or char == "_":
+            sanitized += char
+        else:
+            sanitized += "_"
+
+    # C identifiers cannot start with a digit
+    if sanitized[0].isdigit():
+        sanitized = "_" + sanitized
+
+    # Ensure it's not empty after sanitization
+    if not sanitized or sanitized == "_":
+        return "font"
+
+    return sanitized
+
+
 def parse_character_ranges(range_string):
     if not range_string:
         return list(range(32, 128))
@@ -41,7 +65,9 @@ def parse_character_ranges(range_string):
     return sorted(list(characters))
 
 
-def generate_font_data(ttf_path, font_size, output_path, character_codes=None):
+def generate_font_data(
+    ttf_path, font_size, output_path, character_codes=None, font_name=None
+):
     if not os.path.isfile(ttf_path):
         raise FileNotFoundError(f"Font file not found: {ttf_path}")
 
@@ -75,7 +101,7 @@ def generate_font_data(ttf_path, font_size, output_path, character_codes=None):
     )
     print(f"Generated {len(glyphs)} character glyphs")
 
-    write_c_header(
+    write_c_file(
         output_path,
         bitmap_width,
         font_height,
@@ -85,6 +111,7 @@ def generate_font_data(ttf_path, font_size, output_path, character_codes=None):
         font_size,
         avg_width,
         character_codes,
+        font_name,
     )
     print(f"Font data written to: {output_path}")
 
@@ -190,7 +217,7 @@ def generate_single_glyph(font, code, bitmap_width, font_height, bytes_per_row):
     return (code, char_width, bitmap)
 
 
-def write_c_header(
+def write_c_file(
     output_path,
     bitmap_width,
     height,
@@ -200,10 +227,16 @@ def write_c_header(
     size,
     avg_width,
     character_codes,
+    font_name=None,
 ):
-    header_guard = (
-        os.path.basename(output_path).upper().replace(".", "_").replace("-", "_")
-    )
+    # Use provided font name or derive from output filename
+    if font_name:
+        font_name = sanitize_c_identifier(font_name)
+    else:
+        # Extract from output filename (without extension) and sanitize
+        base_name = os.path.splitext(os.path.basename(output_path))[0]
+        font_name = sanitize_c_identifier(base_name)
+
     first_char = min(character_codes) if character_codes else 32
     last_char = max(character_codes) if character_codes else 127
 
@@ -220,13 +253,10 @@ def write_c_header(
         f.write(" * Format: Variable width, 1 bit per pixel\n")
         f.write(" */\n\n")
 
-        f.write(f"#ifndef {header_guard}\n")
-        f.write(f"#define {header_guard}\n\n")
-
         f.write("#include <stdint.h>\n")
         f.write("#include <microui/font.h>\n\n")
 
-        f.write("static const uint8_t font_bitmaps[] = {\n")
+        f.write(f"const uint8_t {font_name}_bitmaps[] = {{\n")
         bitmap_offset = 0
         bitmap_offsets = []
 
@@ -238,27 +268,25 @@ def write_c_header(
 
         f.write("};\n\n")
 
-        f.write("static const struct FontGlyph font_glyphs[] = {\n")
+        f.write(f"const struct FontGlyph {font_name}_glyphs[] = {{\n")
         for i, (unicode, width, bitmap) in enumerate(glyphs):
             f.write(
-                f"    {{{unicode}u, {width:2d}, {height:2d}, &font_bitmaps[{bitmap_offsets[i]}]}}"
+                f"    {{{unicode}u, {width:2d}, {height:2d}, &{font_name}_bitmaps[{bitmap_offsets[i]}]}}"
             )
             if i < len(glyphs) - 1:
                 f.write(",")
             f.write(f" // {format_char_name(unicode)} (width: {width})\n")
         f.write("};\n\n")
 
-        f.write("static const struct Font font = {\n")
+        f.write(f"const struct Font {font_name} = {{\n")
         f.write(f"    .height = {height},\n")
         f.write(f"    .bitmap_width = {bitmap_width},\n")
         f.write(f"    .bytes_per_row = {bytes_per_row},\n")
         f.write(f"    .default_width = {int(avg_width + 0.5)},\n")
         f.write("    .char_spacing = 1,\n")
         f.write(f"    .glyph_count = {len(glyphs)},\n")
-        f.write("    .glyphs = font_glyphs\n")
-        f.write("};\n\n")
-
-        f.write(f"#endif // {header_guard}\n")
+        f.write(f"    .glyphs = {font_name}_glyphs\n")
+        f.write("};\n")
 
 
 def format_char_name(unicode):
@@ -285,9 +313,9 @@ def main():
         description="Variable Width Bitmap Font Generator - Converts TTF/OTF fonts to C bitmap data with variable character widths",
         epilog="""
 Examples:
-  %(prog)s arial.ttf 12 font_arial_12.h
-  %(prog)s -r "32-127,224,227-229" arial.ttf 16 font_arial_16.h
-  %(prog)s --range "65-90,97-122" /System/Library/Fonts/Monaco.ttf 16 font_mono_16.h
+  %(prog)s arial.ttf 12 font_arial_12.c
+  %(prog)s -r "32-127,224,227-229" arial.ttf 16 font_arial_16.c
+  %(prog)s --range "65-90,97-122" /System/Library/Fonts/Monaco.ttf 16 font_mono_16.c
 
 Features:
   - Variable character widths for better typography
@@ -302,7 +330,14 @@ Features:
     parser.add_argument(
         "size", type=int, help="Font size in pixels (4-128, recommended: 8-32)"
     )
-    parser.add_argument("output", help="Output C header file")
+    parser.add_argument("output", help="Output C file")
+    parser.add_argument(
+        "-n",
+        "--name",
+        dest="font_name",
+        default=None,
+        help="C identifier name for the font. If not provided, derived from output filename.",
+    )
     parser.add_argument(
         "-r",
         "--range",
@@ -323,7 +358,9 @@ Features:
         parser.error(f"Invalid character range: {e}")
 
     try:
-        generate_font_data(args.font_file, args.size, args.output, character_codes)
+        generate_font_data(
+            args.font_file, args.size, args.output, character_codes, args.font_name
+        )
         print("\nSuccess! Font supports variable character widths.")
         print("Text will now render with proper character spacing.")
 

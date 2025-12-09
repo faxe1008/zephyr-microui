@@ -10,6 +10,7 @@
 extern "C" {
 #endif
 
+#include <microui/microui.h>
 #include <stdint.h>
 
 struct FontGlyph {
@@ -35,6 +36,8 @@ static inline void mu_set_font(mu_Context *ctx, const struct Font *font)
 		ctx->_style.font = (void *)font;
 	}
 }
+
+#define MU_FONT_DECLARE(font_name) extern const struct Font font_name;
 
 #ifdef __cplusplus
 }
