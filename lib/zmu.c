@@ -430,20 +430,52 @@ static __always_inline void draw_glyph(const struct FontGlyph *glyph, int x, int
 {
 	uint32_t pixel = color_to_pixel(color);
 
-	for (int row = 0; row < font->height; row++) {
+	/* Compute visible bounds by intersecting glyph rect with display and clip rect */
+	int glyph_x0 = x;
+	int glyph_y0 = y;
+	int glyph_x1 = x + glyph->width;
+	int glyph_y1 = y + font->height;
+
+	/* Clamp to display bounds */
+	int visible_x0 = MAX(glyph_x0, 0);
+	int visible_y0 = MAX(glyph_y0, 0);
+	int visible_x1 = MIN(glyph_x1, DISPLAY_WIDTH);
+	int visible_y1 = MIN(glyph_y1, DISPLAY_HEIGHT);
+
+	/* Clamp to clip rect if active */
+	if (likely(has_clip_rect)) {
+		visible_x0 = MAX(visible_x0, clip_rect.x);
+		visible_y0 = MAX(visible_y0, clip_rect.y);
+		visible_x1 = MIN(visible_x1, clip_rect.x + clip_rect.w);
+		visible_y1 = MIN(visible_y1, clip_rect.y + clip_rect.h);
+	}
+
+	/* Early exit if completely clipped */
+	if (visible_x0 >= visible_x1 || visible_y0 >= visible_y1) {
+		return;
+	}
+
+	/* Convert visible bounds to glyph-local coordinates */
+	int start_col = visible_x0 - x;
+	int end_col = visible_x1 - x;
+	int start_row = visible_y0 - y;
+	int end_row = visible_y1 - y;
+
+	for (int row = start_row; row < end_row; row++) {
+		int screen_y = y + row;
 		if (font->bitmap_width <= 8) {
 			uint8_t row_data = glyph->bitmap[row];
-			for (int col = 0; col < glyph->width && col < font->bitmap_width; col++) {
+			for (int col = start_col; col < end_col; col++) {
 				if (row_data & (0x80 >> col)) {
-					set_pixel(x + col, y + row, pixel);
+					set_pixel_unchecked(x + col, screen_y, pixel);
 				}
 			}
 		} else if (font->bitmap_width <= 16) {
 			uint16_t row_data =
 				(glyph->bitmap[row * 2] << 8) | glyph->bitmap[row * 2 + 1];
-			for (int col = 0; col < glyph->width && col < font->bitmap_width; col++) {
+			for (int col = start_col; col < end_col; col++) {
 				if (row_data & (0x8000 >> col)) {
-					set_pixel(x + col, y + row, pixel);
+					set_pixel_unchecked(x + col, screen_y, pixel);
 				}
 			}
 		} else {
@@ -451,9 +483,9 @@ static __always_inline void draw_glyph(const struct FontGlyph *glyph, int x, int
 					    (glyph->bitmap[row * 4 + 1] << 16) |
 					    (glyph->bitmap[row * 4 + 2] << 8) |
 					    glyph->bitmap[row * 4 + 3];
-			for (int col = 0; col < glyph->width && col < font->bitmap_width; col++) {
+			for (int col = start_col; col < end_col; col++) {
 				if (row_data & (0x80000000 >> col)) {
-					set_pixel(x + col, y + row, pixel);
+					set_pixel_unchecked(x + col, screen_y, pixel);
 				}
 			}
 		}
