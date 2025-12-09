@@ -2,13 +2,15 @@
 #include <zephyr/ztest.h>
 #include <zephyr/drivers/display.h>
 #include <microui/zmu.h>
-#include "montserrat_12.h"
+#include <microui/font.h>
 
 #define DISPLAY_NODE   DT_CHOSEN(zephyr_display)
 #define DISPLAY_WIDTH  DT_PROP(DISPLAY_NODE, width)
 #define DISPLAY_HEIGHT DT_PROP(DISPLAY_NODE, height)
 
 #define RENDER_COUNT 100
+
+MU_FONT_DECLARE(montserrat_12);
 
 static const struct device *display_dev = DEVICE_DT_GET(DISPLAY_NODE);
 static uint32_t frame_count = 0;
@@ -40,7 +42,7 @@ ZTEST(microui_render, test_text_render)
 {
 	mu_setup(perf_basic_text_rendering);
 	mu_Context *ctx = mu_get_context();
-	mu_set_font(ctx, &font);
+	mu_set_font(ctx, &montserrat_12);
 
 	int64_t start_time = k_uptime_get();
 

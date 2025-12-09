@@ -12,7 +12,8 @@
 #include <microui/font.h>
 #include <zephyr/kernel.h>
 
-#include "montserrat_12.h"
+
+MU_FONT_DECLARE(montserrat_12);
 
 static char logbuf[64000];
 static int logbuf_updated = 0;
@@ -248,7 +249,7 @@ int main(int argc, char **argv)
 	mu_setup(process_frame);
 
 	mu_Context *ctx = mu_get_context();
-	mu_set_font(ctx, &font);
+	mu_set_font(ctx, &montserrat_12);
 
 #ifdef CONFIG_MICROUI_EVENT_LOOP
 	mu_event_loop_start();
