@@ -10,10 +10,12 @@
 #include <microui/zmu.h>
 #include <microui/microui.h>
 #include <microui/font.h>
+#include <microui/image.h>
 #include <zephyr/kernel.h>
 
 
 MU_FONT_DECLARE(montserrat_12);
+MU_IMAGE_DECLARE(alarm);
 
 static char logbuf[64000];
 static int logbuf_updated = 0;

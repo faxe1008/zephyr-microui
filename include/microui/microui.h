@@ -45,6 +45,7 @@ enum {
   MU_COMMAND_ARC,
   MU_COMMAND_CIRCLE,
   MU_COMMAND_LINE,
+  MU_COMMAND_IMAGE,
 #endif
   MU_COMMAND_MAX
 };
@@ -119,6 +120,7 @@ typedef struct mu_Context mu_Context;
 typedef unsigned mu_Id;
 typedef MU_REAL mu_Real;
 typedef void* mu_Font;
+typedef void* mu_Image;
 
 typedef struct { int x, y; } mu_Vec2;
 typedef struct { int x, y, w, h; } mu_Rect;
@@ -135,6 +137,7 @@ typedef struct { mu_BaseCommand base; mu_Rect rect; int id; mu_Color color; } mu
 typedef struct { mu_BaseCommand base; mu_Vec2 center; int radius; mu_Color color; } mu_CircleCommand;
 typedef struct { mu_BaseCommand base; mu_Vec2 center; int radius; int thickness; mu_Real start_angle; mu_Real end_angle; mu_Color color; } mu_ArcCommand;
 typedef struct { mu_BaseCommand base; mu_Vec2 p0, p1; int thickness; mu_Color color; } mu_LineCommand;
+typedef struct { mu_BaseCommand base; mu_Vec2 pos; mu_Image image; } mu_ImageCommand;
 #endif
 
 typedef union {
@@ -149,6 +152,7 @@ typedef union {
   mu_ArcCommand arc;
   mu_CircleCommand circle;
   mu_LineCommand line;
+  mu_ImageCommand image;
 #endif
 } mu_Command;
 
@@ -192,6 +196,7 @@ struct mu_Context {
   /* callbacks */
   int (*text_width)(mu_Font font, const char *str, int len);
   int (*text_height)(mu_Font font);
+  void(*img_dimensions)(mu_Image image, int* width, int* height);
   void (*draw_frame)(mu_Context *ctx, mu_Rect rect, int colorid);
   /* core state */
   mu_Style _style;
@@ -274,6 +279,7 @@ void mu_draw_icon(mu_Context *ctx, int id, mu_Rect rect, mu_Color color);
 void mu_draw_arc(mu_Context *ctx, mu_Vec2 center, int radius, int thickness, mu_Real start_angle, mu_Real end_angle, mu_Color color);
 void mu_draw_circle(mu_Context *ctx, mu_Vec2 center, int radius, mu_Color color);
 void mu_draw_line(mu_Context *ctx, mu_Vec2 p0, mu_Vec2 p1, int thickness, mu_Color color);
+void mu_draw_image(mu_Context *ctx, mu_Vec2 pos, mu_Image image);
 #endif
 
 void mu_layout_row(mu_Context *ctx, int items, const int *widths, int height);
