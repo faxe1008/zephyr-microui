@@ -12,6 +12,7 @@
 
 #include <microui/zmu.h>
 #include <microui/font.h>
+#include <microui/image.h>
 
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(microui_zmu, LOG_LEVEL_INF);
@@ -49,7 +50,7 @@ static K_KERNEL_STACK_DEFINE(mu_work_stack, CONFIG_MICROUI_EVENT_LOOP_STACK_SIZE
 static volatile mu_process_frame_cb frame_cb;
 
 static __always_inline const struct mu_FontGlyph *find_glyph(const struct mu_FontDescriptor *font,
-								  uint32_t codepoint)
+							     uint32_t codepoint)
 {
 	int left = 0;
 	int right = font->glyph_count - 1;
@@ -719,6 +720,52 @@ static void renderer_present(void)
 }
 
 #ifdef CONFIG_MICROUI_DRAW_EXTENSIONS
+
+static __always_inline mu_Color pixel_to_color(const uint8_t *src, int offset,
+					       enum display_pixel_format format)
+{
+	mu_Color color = {0, 0, 0, 255};
+
+	switch (format) {
+	case PIXEL_FORMAT_RGB_888:
+		color.r = src[offset * 3 + 0];
+		color.g = src[offset * 3 + 1];
+		color.b = src[offset * 3 + 2];
+		break;
+	case PIXEL_FORMAT_ARGB_8888:
+		color.a = src[offset * 4 + 0];
+		color.r = src[offset * 4 + 1];
+		color.g = src[offset * 4 + 2];
+		color.b = src[offset * 4 + 3];
+		break;
+	case PIXEL_FORMAT_RGB_565: {
+		uint16_t rgb565 = src[offset * 2] | (src[offset * 2 + 1] << 8);
+		color.r = ((rgb565 >> 11) & 0x1F) << 3;
+		color.g = ((rgb565 >> 5) & 0x3F) << 2;
+		color.b = (rgb565 & 0x1F) << 3;
+		break;
+	}
+	case PIXEL_FORMAT_BGR_565: {
+		uint16_t bgr565 = src[offset * 2] | (src[offset * 2 + 1] << 8);
+		color.b = ((bgr565 >> 11) & 0x1F) << 3;
+		color.g = ((bgr565 >> 5) & 0x3F) << 2;
+		color.r = (bgr565 & 0x1F) << 3;
+		break;
+	}
+	case PIXEL_FORMAT_L_8:
+		color.r = color.g = color.b = src[offset];
+		break;
+	case PIXEL_FORMAT_AL_88:
+		color.a = src[offset * 2 + 0];
+		color.r = color.g = color.b = src[offset * 2 + 1];
+		break;
+	default:
+		break;
+	}
+
+	return color;
+}
+
 static void renderer_draw_arc(mu_Vec2 center, int radius, int thickness, mu_Real start_angle,
 			      mu_Real end_angle, mu_Color color)
 {
@@ -811,6 +858,112 @@ static void renderer_draw_circle(mu_Vec2 center, int radius, mu_Color color)
 		}
 	}
 }
+
+static void renderer_draw_image(mu_Vec2 pos, mu_Image image)
+{
+	if (image == NULL) {
+		return;
+	}
+
+	const struct mu_ImageDescriptor *img_desc = (const struct mu_ImageDescriptor *)image;
+
+	/* Validate image descriptor */
+	if (img_desc->data == NULL || img_desc->width == 0 || img_desc->height == 0) {
+		return;
+	}
+
+	/* Calculate visible region by intersecting image rect with display bounds */
+	mu_Rect img_rect = mu_rect(pos.x, pos.y, img_desc->width, img_desc->height);
+	mu_Rect display_rect = mu_rect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+	mu_Rect visible = intersect_rects(img_rect, display_rect);
+
+	/* Also intersect with clip rect if active */
+	if (likely(has_clip_rect)) {
+		visible = intersect_rects(visible, clip_rect);
+	}
+
+	/* Early exit if completely clipped */
+	if (visible.w == 0 || visible.h == 0) {
+		return;
+	}
+
+	/* Calculate source offsets (image-local coordinates) */
+	int src_x_start = visible.x - pos.x;
+	int src_y_start = visible.y - pos.y;
+
+	/* Handle monochrome formats separately (need to use set_pixel) */
+	if (img_desc->pixel_format == PIXEL_FORMAT_MONO01 ||
+	    img_desc->pixel_format == PIXEL_FORMAT_MONO10) {
+		bool invert = (img_desc->pixel_format == PIXEL_FORMAT_MONO10);
+
+		for (int row = 0; row < visible.h; row++) {
+			int src_y = src_y_start + row;
+			int dst_y = visible.y + row;
+
+			for (int col = 0; col < visible.w; col++) {
+				int src_x = src_x_start + col;
+				int dst_x = visible.x + col;
+
+				/* Calculate bit position in source data */
+				int byte_idx = src_y * img_desc->stride + (src_x / 8);
+				int bit_idx = 7 - (src_x % 8);
+
+				/* Extract bit value */
+				uint8_t bit_val = (img_desc->data[byte_idx] >> bit_idx) & 0x01;
+
+				/* Apply inversion if MONO10 */
+				if (invert) {
+					bit_val = !bit_val;
+				}
+
+				/* Convert to pixel value (white or black) */
+				uint32_t pixel = bit_val ? 0xFFFFFF : 0x000000;
+				set_pixel_unchecked(dst_x, dst_y, pixel);
+			}
+		}
+		return;
+	}
+
+	/* For non-mono formats, check if pixel formats match for fast path */
+	bool format_matches = (img_desc->pixel_format == display_caps.current_pixel_format);
+
+	if (format_matches) {
+		/* Fast path: direct memcpy when formats match */
+		for (int row = 0; row < visible.h; row++) {
+			int src_y = src_y_start + row;
+			int dst_y = visible.y + row;
+
+			/* Calculate source and destination offsets */
+			const uint8_t *src = img_desc->data +
+					     (src_y * img_desc->stride) +
+					     (src_x_start * DISPLAY_BYTES_PER_PIXEL);
+			uint8_t *dst = display_buffer +
+				       (dst_y * DISPLAY_STRIDE) +
+				       (visible.x * DISPLAY_BYTES_PER_PIXEL);
+
+			/* Copy row data */
+			int bytes_to_copy = visible.w * DISPLAY_BYTES_PER_PIXEL;
+			memcpy(dst, src, bytes_to_copy);
+		}
+	} else {
+		/* Slow path: format conversion needed - use set_pixel for each pixel */
+		for (int row = 0; row < visible.h; row++) {
+			int src_y = src_y_start + row;
+			int dst_y = visible.y + row;
+			const uint8_t *src_row = img_desc->data + (src_y * img_desc->stride);
+
+			for (int col = 0; col < visible.w; col++) {
+				int src_x = src_x_start + col;
+				int dst_x = visible.x + col;
+
+				mu_Color color = pixel_to_color(src_row, src_x, img_desc->pixel_format);
+				uint32_t pixel = color_to_pixel(color);
+				set_pixel_unchecked(dst_x, dst_y, pixel);
+			}
+		}
+	}
+}
+
 #endif
 
 void mu_set_bg_color(mu_Color color)
@@ -854,6 +1007,9 @@ void mu_render(void)
 		case MU_COMMAND_LINE:
 			renderer_draw_line(cmd->line.p0, cmd->line.p1, cmd->line.thickness,
 					   cmd->line.color);
+			break;
+		case MU_COMMAND_IMAGE:
+			renderer_draw_image(cmd->image.pos, cmd->image.image);
 			break;
 #endif
 		}
@@ -945,6 +1101,7 @@ int mu_setup(mu_process_frame_cb cb)
 	mu_init(&mu_ctx);
 	mu_ctx.text_width = renderer_get_text_width;
 	mu_ctx.text_height = renderer_get_text_height;
+	mu_ctx.img_dimensions = mu_get_img_dimensions;
 
 #ifdef CONFIG_MICROUI_EVENT_LOOP
 	k_work_queue_init(&mu_work_queue);

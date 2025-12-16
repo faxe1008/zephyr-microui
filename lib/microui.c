@@ -595,6 +595,20 @@ void mu_draw_line(mu_Context *ctx, mu_Vec2 p0, mu_Vec2 p1, int thickness, mu_Col
   if (clipped) { mu_set_clip(ctx, unclipped_rect, 0); }
 }
 
+void mu_draw_image(mu_Context *ctx, mu_Vec2 pos, mu_Image image)
+{
+  mu_Command *cmd;
+  mu_Rect rect = mu_rect(pos.x, pos.y, 1, 1);
+  ctx->img_dimensions(image, &rect.w, &rect.h);
+  int clipped = mu_check_clip(ctx, rect);
+  if (clipped == MU_CLIP_ALL ) { return; }
+  if (clipped == MU_CLIP_PART) { mu_set_clip(ctx, mu_get_clip_rect(ctx), MU_CLIPPING_ENABLED); }
+  cmd = mu_push_command(ctx, MU_COMMAND_IMAGE, sizeof(mu_ImageCommand));
+  cmd->image.pos = pos;
+  cmd->image.image = image;
+  if (clipped) { mu_set_clip(ctx, unclipped_rect, 0); }
+}
+
 #endif
 
 /*============================================================================
