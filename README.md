@@ -29,7 +29,7 @@ This module provides the MicroUI library for Zephyr RTOS applications. MicroUI i
 #include <microui/font.h>
 
 // Your application font, see scripts/microui_font_gen.py to generate new ones
-extern const struct Font your_font;
+MU_FONT_DECLARE(your_font);
 
 // Frame callback function
 void process_frame(mu_Context *ctx) 

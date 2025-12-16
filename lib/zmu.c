@@ -48,8 +48,8 @@ static K_KERNEL_STACK_DEFINE(mu_work_stack, CONFIG_MICROUI_EVENT_LOOP_STACK_SIZE
 #endif /* CONFIG_MICROUI_EVENT_LOOP */
 static volatile mu_process_frame_cb frame_cb;
 
-static __always_inline const struct FontGlyph *find_glyph(const struct Font *font,
-							  uint32_t codepoint)
+static __always_inline const struct mu_FontGlyph *find_glyph(const struct mu_FontDescriptor *font,
+								  uint32_t codepoint)
 {
 	int left = 0;
 	int right = font->glyph_count - 1;
@@ -425,8 +425,8 @@ static void renderer_draw_line(mu_Vec2 p0, mu_Vec2 p1, uint8_t thickness, mu_Col
 	}
 }
 
-static __always_inline void draw_glyph(const struct FontGlyph *glyph, int x, int y,
-				       const struct Font *font, mu_Color color)
+static __always_inline void draw_glyph(const struct mu_FontGlyph *glyph, int x, int y,
+				       const struct mu_FontDescriptor *font, mu_Color color)
 {
 	uint32_t pixel = color_to_pixel(color);
 
@@ -606,7 +606,7 @@ static void renderer_draw_rect(mu_Rect rect, mu_Color color)
 static void renderer_draw_text(mu_Font f, const char *text, mu_Vec2 pos, mu_Color color)
 {
 	int x = pos.x;
-	const struct Font *font = (struct Font *)f;
+	const struct mu_FontDescriptor *font = (struct mu_FontDescriptor *)f;
 
 	if (!font) {
 		LOG_WRN_ONCE("Font is NULL, cannot draw text");
@@ -622,7 +622,7 @@ static void renderer_draw_text(mu_Font f, const char *text, mu_Vec2 pos, mu_Colo
 			break;
 		}
 
-		const struct FontGlyph *glyph = find_glyph(font, codepoint);
+		const struct mu_FontGlyph *glyph = find_glyph(font, codepoint);
 		if (likely(glyph)) {
 			draw_glyph(glyph, x, pos.y, font, color);
 			x += glyph->width + font->char_spacing;
@@ -683,7 +683,7 @@ static int renderer_get_text_width(mu_Font f, const char *text, int len)
 	int width = 0;
 	int char_count = 0;
 	int byte_count = 0;
-	const struct Font *font = (const struct Font *)f;
+	const struct mu_FontDescriptor *font = (const struct mu_FontDescriptor *)f;
 
 	if (!font) {
 		LOG_WRN_ONCE("Font is NULL, returning width 0");
@@ -703,7 +703,7 @@ static int renderer_get_text_width(mu_Font f, const char *text, int len)
 			break;
 		}
 
-		const struct FontGlyph *glyph = find_glyph(font, codepoint);
+		const struct mu_FontGlyph *glyph = find_glyph(font, codepoint);
 		if (likely(glyph)) {
 			width += glyph->width;
 		} else {
@@ -724,7 +724,7 @@ static int renderer_get_text_width(mu_Font f, const char *text, int len)
 
 static int renderer_get_text_height(mu_Font f)
 {
-	const struct Font *font = (const struct Font *)f;
+	const struct mu_FontDescriptor *font = (const struct mu_FontDescriptor *)f;
 	if (!font) {
 		LOG_WRN_ONCE("Font is NULL, returning height 0");
 		return 0;
