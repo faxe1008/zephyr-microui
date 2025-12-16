@@ -268,7 +268,7 @@ def write_c_file(
 
         f.write("};\n\n")
 
-        f.write(f"const struct FontGlyph {font_name}_glyphs[] = {{\n")
+        f.write(f"const struct mu_FontGlyph {font_name}_glyphs[] = {{\n")
         for i, (unicode, width, bitmap) in enumerate(glyphs):
             f.write(
                 f"    {{{unicode}u, {width:2d}, {height:2d}, &{font_name}_bitmaps[{bitmap_offsets[i]}]}}"
@@ -278,7 +278,7 @@ def write_c_file(
             f.write(f" // {format_char_name(unicode)} (width: {width})\n")
         f.write("};\n\n")
 
-        f.write(f"const struct Font {font_name} = {{\n")
+        f.write(f"const struct mu_FontDescriptor {font_name} = {{\n")
         f.write(f"    .height = {height},\n")
         f.write(f"    .bitmap_width = {bitmap_width},\n")
         f.write(f"    .bytes_per_row = {bytes_per_row},\n")

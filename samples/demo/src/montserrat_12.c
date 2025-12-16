@@ -110,7 +110,7 @@ const uint8_t montserrat_12_bitmaps[] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFE, 0x00, 0x82, 0x00, 0x82, 0x00, 0x82, 0x00, 0x82, 0x00, 0x82, 0x00, 0x82, 0x00, 0x82, 0x00, 0xFE, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
-const struct FontGlyph montserrat_12_glyphs[] = {
+const struct mu_FontGlyph montserrat_12_glyphs[] = {
     {32u,  4, 14, &montserrat_12_bitmaps[0]}, // Space (width: 4)
     {33u,  3, 14, &montserrat_12_bitmaps[28]}, // '!' (width: 3)
     {34u,  5, 14, &montserrat_12_bitmaps[56]}, // '"' (width: 5)
@@ -209,7 +209,7 @@ const struct FontGlyph montserrat_12_glyphs[] = {
     {127u,  7, 14, &montserrat_12_bitmaps[2660]} // \x7F (width: 7)
 };
 
-const struct Font montserrat_12 = {
+const struct mu_FontDescriptor montserrat_12 = {
     .height = 14,
     .bitmap_width = 16,
     .bytes_per_row = 2,
