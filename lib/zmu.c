@@ -697,6 +697,7 @@ static void renderer_set_clip_rect(mu_Rect rect, int opt)
 	has_clip_rect = (opt & MU_CLIPPING_ENABLED);
 }
 
+#ifdef CONFIG_MICROUI_RENDER_CLEAR_BEFORE_DRAW
 static void renderer_clear(mu_Color color)
 {
 	uint32_t pixel = color_to_pixel(color);
@@ -710,6 +711,7 @@ static void renderer_clear(mu_Color color)
 		memcpy(dst_row, src_row, row_bytes);
 	}
 }
+#endif /* CONFIG_MICROUI_RENDER_CLEAR_BEFORE_DRAW */
 
 static void renderer_present(void)
 {
@@ -982,7 +984,9 @@ mu_Context *mu_get_context(void)
 
 void mu_render(void)
 {
+#ifdef CONFIG_MICROUI_RENDER_CLEAR_BEFORE_DRAW
 	renderer_clear(bg_color);
+#endif /* CONFIG_MICROUI_RENDER_CLEAR_BEFORE_DRAW */
 	mu_Command *cmd = NULL;
 	while (mu_next_command(&mu_ctx, &cmd)) {
 		switch (cmd->type) {
