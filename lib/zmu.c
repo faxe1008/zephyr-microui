@@ -700,10 +700,14 @@ static void renderer_set_clip_rect(mu_Rect rect, int opt)
 static void renderer_clear(mu_Color color)
 {
 	uint32_t pixel = color_to_pixel(color);
-	for (int y = 0; y < DISPLAY_HEIGHT; y++) {
-		for (int x = 0; x < DISPLAY_WIDTH; x++) {
-			set_pixel_unchecked(x, y, pixel);
-		}
+	for (int x = 0; x < DISPLAY_WIDTH; x++) {
+		set_pixel_unchecked(x, 0, pixel);
+	}
+	uint8_t *src_row = display_buffer;
+	int row_bytes = DISPLAY_WIDTH * DISPLAY_BYTES_PER_PIXEL;
+	for (int y = 1; y < DISPLAY_HEIGHT; y++) {
+		uint8_t *dst_row = src_row + (y * DISPLAY_STRIDE);
+		memcpy(dst_row, src_row, row_bytes);
 	}
 }
 
