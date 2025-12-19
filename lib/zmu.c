@@ -516,61 +516,21 @@ static void renderer_init(void)
 static void renderer_draw_rect(mu_Rect rect, mu_Color color)
 {
 	uint32_t pixel = color_to_pixel(color);
-	/* Check clipping first */
-	int clip_result = 0;
-	mu_Rect cr = clip_rect;
-	if (rect.x > cr.x + cr.w || rect.x + rect.w < cr.x || rect.y > cr.y + cr.h ||
-	    rect.y + rect.h < cr.y) {
-		return;
-	}
-	if (rect.x >= cr.x && rect.x + rect.w <= cr.x + cr.w && rect.y >= cr.y &&
-	    rect.y + rect.h <= cr.y + cr.h) {
-	} else {
-		clip_result = MU_CLIP_PART;
-	}
 
-	/* If partially clipped, intersect with clip rect */
-	if (clip_result == MU_CLIP_PART) {
-		int x1 = mu_max(rect.x, clip_rect.x);
-		int y1 = mu_max(rect.y, clip_rect.y);
-		int x2 = mu_min(rect.x + rect.w, clip_rect.x + clip_rect.w);
-		int y2 = mu_min(rect.y + rect.h, clip_rect.y + clip_rect.h);
+	/* Clamp to display bounds (microui already handled clip rect intersection) */
+	int x1 = mu_max(rect.x, 0);
+	int y1 = mu_max(rect.y, 0);
+	int x2 = mu_min(rect.x + rect.w, DISPLAY_WIDTH);
+	int y2 = mu_min(rect.y + rect.h, DISPLAY_HEIGHT);
 
-		if (x2 <= x1 || y2 <= y1) {
-			return; /* No valid area to draw */
-		}
-
-		rect.x = x1;
-		rect.y = y1;
-		rect.w = x2 - x1;
-		rect.h = y2 - y1;
-	}
-
-	/* Additional bounds checking against display dimensions */
-	if (rect.x >= DISPLAY_WIDTH || rect.y >= DISPLAY_HEIGHT || rect.x + rect.w <= 0 ||
-	    rect.y + rect.h <= 0) {
+	if (x2 <= x1 || y2 <= y1) {
 		return;
 	}
 
-	/* Clamp to display bounds */
-	if (rect.x < 0) {
-		rect.w += rect.x;
-		rect.x = 0;
-	}
-	if (rect.y < 0) {
-		rect.h += rect.y;
-		rect.y = 0;
-	}
-	if (rect.x + rect.w > DISPLAY_WIDTH) {
-		rect.w = DISPLAY_WIDTH - rect.x;
-	}
-	if (rect.y + rect.h > DISPLAY_HEIGHT) {
-		rect.h = DISPLAY_HEIGHT - rect.y;
-	}
-
-	if (rect.w <= 0 || rect.h <= 0) {
-		return;
-	}
+	rect.x = x1;
+	rect.y = y1;
+	rect.w = x2 - x1;
+	rect.h = y2 - y1;
 
 #ifdef CONFIG_MICROUI_RENDER_MONO
 	if (display_caps.current_pixel_format == PIXEL_FORMAT_MONO01 ||
