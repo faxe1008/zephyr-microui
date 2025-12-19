@@ -130,6 +130,22 @@ static __always_inline uint8_t luminance(mu_Color color)
 	return (299 * color.r + 587 * color.g + 114 * color.b) / 1000;
 }
 
+static __always_inline mu_Rect intersect_rects(mu_Rect r1, mu_Rect r2)
+{
+	int x1 = mu_max(r1.x, r2.x);
+	int y1 = mu_max(r1.y, r2.y);
+	int x2 = mu_min(r1.x + r1.w, r2.x + r2.w);
+	int y2 = mu_min(r1.y + r1.h, r2.y + r2.h);
+
+	if (x2 < x1) {
+		x2 = x1;
+	}
+	if (y2 < y1) {
+		y2 = y1;
+	}
+	return mu_rect(x1, y1, x2 - x1, y2 - y1);
+}
+
 #define ENABLED_CF_COUNT                                                                           \
 	IS_ENABLED(CONFIG_MICROUI_RENDER_RGB_888) + IS_ENABLED(CONFIG_MICROUI_RENDER_ARGB_8888) +  \
 		IS_ENABLED(CONFIG_MICROUI_RENDER_RGB_565) +                                        \
@@ -431,35 +447,24 @@ static __always_inline void draw_glyph(const struct mu_FontGlyph *glyph, int x, 
 	uint32_t pixel = color_to_pixel(color);
 
 	/* Compute visible bounds by intersecting glyph rect with display and clip rect */
-	int glyph_x0 = x;
-	int glyph_y0 = y;
-	int glyph_x1 = x + glyph->width;
-	int glyph_y1 = y + font->height;
+	mu_Rect glyph_rect = mu_rect(x, y, glyph->width, font->height);
+	mu_Rect display_rect = mu_rect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+	mu_Rect visible = intersect_rects(glyph_rect, display_rect);
 
-	/* Clamp to display bounds */
-	int visible_x0 = MAX(glyph_x0, 0);
-	int visible_y0 = MAX(glyph_y0, 0);
-	int visible_x1 = MIN(glyph_x1, DISPLAY_WIDTH);
-	int visible_y1 = MIN(glyph_y1, DISPLAY_HEIGHT);
-
-	/* Clamp to clip rect if active */
 	if (likely(has_clip_rect)) {
-		visible_x0 = MAX(visible_x0, clip_rect.x);
-		visible_y0 = MAX(visible_y0, clip_rect.y);
-		visible_x1 = MIN(visible_x1, clip_rect.x + clip_rect.w);
-		visible_y1 = MIN(visible_y1, clip_rect.y + clip_rect.h);
+		visible = intersect_rects(visible, clip_rect);
 	}
 
 	/* Early exit if completely clipped */
-	if (visible_x0 >= visible_x1 || visible_y0 >= visible_y1) {
+	if (visible.w == 0 || visible.h == 0) {
 		return;
 	}
 
 	/* Convert visible bounds to glyph-local coordinates */
-	int start_col = visible_x0 - x;
-	int end_col = visible_x1 - x;
-	int start_row = visible_y0 - y;
-	int end_row = visible_y1 - y;
+	int start_col = visible.x - x;
+	int end_col = visible.x + visible.w - x;
+	int start_row = visible.y - y;
+	int end_row = visible.y + visible.h - y;
 
 	for (int row = start_row; row < end_row; row++) {
 		int screen_y = y + row;
@@ -518,19 +523,12 @@ static void renderer_draw_rect(mu_Rect rect, mu_Color color)
 	uint32_t pixel = color_to_pixel(color);
 
 	/* Clamp to display bounds (microui already handled clip rect intersection) */
-	int x1 = mu_max(rect.x, 0);
-	int y1 = mu_max(rect.y, 0);
-	int x2 = mu_min(rect.x + rect.w, DISPLAY_WIDTH);
-	int y2 = mu_min(rect.y + rect.h, DISPLAY_HEIGHT);
+	mu_Rect display_rect = mu_rect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT);
+	rect = intersect_rects(rect, display_rect);
 
-	if (x2 <= x1 || y2 <= y1) {
+	if (rect.w == 0 || rect.h == 0) {
 		return;
 	}
-
-	rect.x = x1;
-	rect.y = y1;
-	rect.w = x2 - x1;
-	rect.h = y2 - y1;
 
 #ifdef CONFIG_MICROUI_RENDER_MONO
 	if (display_caps.current_pixel_format == PIXEL_FORMAT_MONO01 ||
