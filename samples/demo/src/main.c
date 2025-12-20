@@ -7,11 +7,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 #include <microui/zmu.h>
 #include <microui/microui.h>
 #include <microui/font.h>
 #include <microui/image.h>
 #include <zephyr/kernel.h>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 
 MU_FONT_DECLARE(montserrat_12);
@@ -52,7 +57,7 @@ static void test_window(mu_Context *ctx)
 		}
 
 		/* labels + buttons */
-		if (mu_header_ex(ctx, "Test Buttons", MU_OPT_EXPANDED)) {
+		if (mu_header_ex(ctx, "Test Buttons", 0)) {
 			mu_layout_row(ctx, 3, (int[]){86, -110, -1}, 0);
 			mu_label(ctx, "Test buttons 1:");
 			if (mu_button(ctx, "Button 1")) {
@@ -76,7 +81,7 @@ static void test_window(mu_Context *ctx)
 		}
 
 		/* tree */
-		if (mu_header_ex(ctx, "Tree and Text", MU_OPT_EXPANDED)) {
+		if (mu_header_ex(ctx, "Tree and Text", 0)) {
 			mu_layout_row(ctx, 2, (int[]){140, -1}, 0);
 			mu_layout_begin_column(ctx);
 			if (mu_begin_treenode(ctx, "Test 1")) {
@@ -151,7 +156,84 @@ static void test_window(mu_Context *ctx)
 			mu_draw_control_text(ctx, buf, r, MU_COLOR_TEXT, MU_OPT_ALIGNCENTER);
 		}
 
-		mu_end_window(ctx);
+#ifdef CONFIG_MICROUI_DRAW_EXTENSIONS
+        if (mu_header_ex(ctx, "Watch Face", 0)) {
+            static uint32_t ticks, seconds, minutes, hours;
+
+            /* Advance time based on refresh period */
+            ticks++;
+            uint32_t ticks_per_second = (1000 / CONFIG_MICROUI_DISPLAY_REFRESH_PERIOD) / 4;
+
+            if (ticks >= ticks_per_second) {
+                ticks = 0;
+                seconds++;
+                if (seconds >= 60) {
+                    seconds = 0;
+                    minutes++;
+                    if (minutes >= 60) {
+                        minutes = 0;
+                        hours++;
+                        if (hours >= 12) {
+                            hours = 0;
+                        }
+                    }
+                }
+            }
+
+            /* Watch face dimensions */
+            int watch_size = 200;
+            int radius = watch_size / 2 - 10;
+
+            mu_layout_row(ctx, 1, (int[]){watch_size}, watch_size);
+            mu_Rect r = mu_layout_next(ctx);
+
+            int center_x = r.x + watch_size / 2;
+            int center_y = r.y + watch_size / 2;
+            mu_Vec2 center = {center_x, center_y};
+
+            /* Draw watch face circle */
+            mu_draw_circle(ctx, center, radius, mu_color(255, 255, 255, 255));
+
+            /* Draw hour markers */
+            for (int i = 0; i < 12; i++) {
+                double angle = (i * 30.0 - 90.0) * M_PI / 180.0;
+                int inner_r = radius - 10;
+                int outer_r = radius - 3;
+                mu_Vec2 p0 = {center_x + (int)(cos(angle) * inner_r),
+                              center_y + (int)(sin(angle) * inner_r)};
+                mu_Vec2 p1 = {center_x + (int)(cos(angle) * outer_r),
+                              center_y + (int)(sin(angle) * outer_r)};
+                mu_draw_line(ctx, p0, p1, 2, mu_color(0, 0, 0, 255));
+            }
+
+            /* Calculate hand angles (in radians, starting from 12 o'clock position) */
+            double second_angle = ((seconds * 6.0) - 90.0) * M_PI / 180.0;
+            double minute_angle = ((minutes * 6.0 + seconds * 0.1) - 90.0) * M_PI / 180.0;
+            double hour_angle = ((hours * 30.0 + minutes * 0.5) - 90.0) * M_PI / 180.0;
+
+            /* Draw hour hand (shortest, thickest) */
+            int hour_length = radius * 50 / 100;
+            mu_Vec2 hour_end = {center_x + (int)(cos(hour_angle) * hour_length),
+                                center_y + (int)(sin(hour_angle) * hour_length)};
+            mu_draw_line(ctx, center, hour_end, 4, mu_color(0, 0, 0, 255));
+
+            /* Draw minute hand (medium length) */
+            int minute_length = radius * 70 / 100;
+            mu_Vec2 minute_end = {center_x + (int)(cos(minute_angle) * minute_length),
+                                  center_y + (int)(sin(minute_angle) * minute_length)};
+            mu_draw_line(ctx, center, minute_end, 3, mu_color(0, 0, 0, 255));
+
+            /* Draw second hand (longest, thinnest, red) */
+            int second_length = radius * 85 / 100;
+            mu_Vec2 second_end = {center_x + (int)(cos(second_angle) * second_length),
+                                  center_y + (int)(sin(second_angle) * second_length)};
+            mu_draw_line(ctx, center, second_end, 1, mu_color(255, 0, 0, 255));
+
+            /* Draw center dot */
+            mu_draw_circle(ctx, center, 5, mu_color(0, 0, 0, 255));
+        }
+#endif /* CONFIG_MICROUI_DRAW_EXTENSIONS */
+        mu_end_window(ctx);
 	}
 }
 
