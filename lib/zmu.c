@@ -42,6 +42,29 @@ static mu_Color bg_color = {90, 95, 100, 255};
 static mu_Rect clip_rect = {0, 0, 0, 0};
 static bool has_clip_rect = false;
 
+/* Text width cache */
+#ifdef CONFIG_MICROUI_TEXT_WIDTH_CACHE
+struct text_width_cache_entry {
+	const void *font;
+	uint32_t hash;
+	int len;
+	int width;
+};
+
+static struct text_width_cache_entry text_width_cache[CONFIG_MICROUI_TEXT_WIDTH_CACHE_SIZE];
+
+static inline uint32_t fnv1a_hash(const char *text, int len)
+{
+	uint32_t hash = 2166136261u;
+
+	for (int i = 0; i < len && text[i]; i++) {
+		hash ^= (uint8_t)text[i];
+		hash *= 16777619u;
+	}
+	return hash;
+}
+#endif /* CONFIG_MICROUI_TEXT_WIDTH_CACHE */
+
 /* Work queue and work queue thread */
 #ifdef CONFIG_MICROUI_EVENT_LOOP
 static struct k_work_q mu_work_queue;
@@ -653,6 +676,16 @@ static int renderer_get_text_width(mu_Font f, const char *text, int len)
 		len = strlen(text);
 	}
 
+#ifdef CONFIG_MICROUI_TEXT_WIDTH_CACHE
+	uint32_t hash = fnv1a_hash(text, len);
+	uint32_t cache_idx = hash % CONFIG_MICROUI_TEXT_WIDTH_CACHE_SIZE;
+	struct text_width_cache_entry *entry = &text_width_cache[cache_idx];
+
+	if (entry->font == font && entry->hash == hash && entry->len == len) {
+		return entry->width;
+	}
+#endif /* CONFIG_MICROUI_TEXT_WIDTH_CACHE */
+
 	const char *current = text;
 	while (byte_count < len && *current) {
 		uint32_t codepoint;
@@ -677,6 +710,13 @@ static int renderer_get_text_width(mu_Font f, const char *text, int len)
 	if (char_count > 0) {
 		width += (char_count - 1) * font->char_spacing;
 	}
+
+#ifdef CONFIG_MICROUI_TEXT_WIDTH_CACHE
+	entry->font = font;
+	entry->hash = hash;
+	entry->len = len;
+	entry->width = width;
+#endif /* CONFIG_MICROUI_TEXT_WIDTH_CACHE */
 
 	return width;
 }

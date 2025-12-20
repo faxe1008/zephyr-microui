@@ -51,3 +51,18 @@ config MICROUI_MAX_WIDTHS
 	default 16
 	help
 	  Maximum number of widths.
+
+config MICROUI_TEXT_WIDTH_CACHE
+	bool "Enable text width cache"
+	default y
+	help
+	  Enable caching of text width calculations. This is useful for static
+	  text that is rendered frequently, such as UI labels.
+
+config MICROUI_TEXT_WIDTH_CACHE_SIZE
+	int "Text width cache size"
+	default 64
+	depends on MICROUI_TEXT_WIDTH_CACHE
+	help
+	  Number of entries in the text width cache. Each entry caches the
+	  calculated width for a specific font and text combination.
