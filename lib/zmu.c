@@ -779,13 +779,13 @@ static __always_inline mu_Color pixel_to_color(const uint8_t *src, int offset,
 		color.b = src[offset * 3 + 2];
 		break;
 	case PIXEL_FORMAT_ARGB_8888:
-		color.a = src[offset * 4 + 0];
-		color.r = src[offset * 4 + 1];
-		color.g = src[offset * 4 + 2];
-		color.b = src[offset * 4 + 3];
+		color.b = src[offset * 4 + 0];
+		color.g = src[offset * 4 + 1];
+		color.r = src[offset * 4 + 2];
+		color.a = src[offset * 4 + 3];
 		break;
 	case PIXEL_FORMAT_RGB_565: {
-		uint16_t rgb565 = src[offset * 2] | (src[offset * 2 + 1] << 8);
+		uint16_t rgb565 = (src[offset * 2] << 8) | src[offset * 2 + 1];
 		color.r = ((rgb565 >> 11) & 0x1F) << 3;
 		color.g = ((rgb565 >> 5) & 0x3F) << 2;
 		color.b = (rgb565 & 0x1F) << 3;
@@ -962,8 +962,8 @@ static void renderer_draw_image(mu_Vec2 pos, mu_Image image)
 					bit_val = !bit_val;
 				}
 
-				/* Convert to pixel value (white or black) */
-				uint32_t pixel = bit_val ? 0xFFFFFF : 0x000000;
+				/* Convert to pixel value (white or black) with full alpha */
+				uint32_t pixel = bit_val ? 0xFFFFFFFF : 0xFF000000;
 				set_pixel_unchecked(dst_x, dst_y, pixel);
 			}
 		}

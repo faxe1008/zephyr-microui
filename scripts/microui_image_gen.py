@@ -126,20 +126,24 @@ def convert_to_rgb_888(img):
 
 
 def convert_to_argb_8888(img):
-    """Convert image to ARGB_8888 format (32-bit ARGB)."""
+    """Convert image to ARGB_8888 format (32-bit ARGB, little-endian).
+
+    ARGB_8888 represents a 32-bit value as 0xAARRGGBB.
+    On little-endian systems, this is stored in memory as B, G, R, A.
+    """
     data = []
     for y in range(img.height):
         for x in range(img.width):
             r, g, b, a = img.getpixel((x, y))
-            data.append(a)
-            data.append(r)
-            data.append(g)
             data.append(b)
+            data.append(g)
+            data.append(r)
+            data.append(a)
     return bytes(data)
 
 
 def convert_to_rgb_565(img):
-    """Convert image to RGB_565 format (16-bit RGB, little-endian)."""
+    """Convert image to RGB_565 format (16-bit RGB, big-endian)."""
     data = []
     for y in range(img.height):
         for x in range(img.width):
@@ -153,9 +157,9 @@ def convert_to_rgb_565(img):
             # Pack into 16-bit value: RRRRRGGGGGGBBBBB
             rgb565 = (r5 << 11) | (g6 << 5) | b5
 
-            # Store as little-endian (LSB first)
-            data.append(rgb565 & 0xFF)
+            # Store as big-endian (MSB first)
             data.append((rgb565 >> 8) & 0xFF)
+            data.append(rgb565 & 0xFF)
 
     return bytes(data)
 
