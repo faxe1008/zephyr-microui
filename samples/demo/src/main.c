@@ -20,7 +20,15 @@
 
 
 MU_FONT_DECLARE(montserrat_12);
-MU_IMAGE_DECLARE(alarm);
+
+MU_IMAGE_DECLARE(square_rgb888);
+MU_IMAGE_DECLARE(square_argb8888);
+MU_IMAGE_DECLARE(square_rgb565);
+MU_IMAGE_DECLARE(square_bgr565);
+MU_IMAGE_DECLARE(square_l8);
+MU_IMAGE_DECLARE(square_al88);
+MU_IMAGE_DECLARE(square_mono01);
+MU_IMAGE_DECLARE(square_mono10);
 
 static char logbuf[64000];
 static int logbuf_updated = 0;
@@ -231,6 +239,47 @@ static void test_window(mu_Context *ctx)
 
             /* Draw center dot */
             mu_draw_circle(ctx, center, 5, mu_color(0, 0, 0, 255));
+        }
+
+
+        if (mu_header_ex(ctx, "Images", MU_OPT_EXPANDED))
+        {
+            mu_layout_row(ctx, 2, (int[]){140, -1}, 0);
+            mu_layout_begin_column(ctx);
+            mu_label(ctx, "RGB888");
+            mu_layout_row(ctx, 1, (int[]){48}, 48);
+            mu_draw_image(ctx, mu_vec2(0, 0), (mu_Image)&square_rgb888);
+            mu_layout_row(ctx, 1, (int[]){-1}, 0);
+            mu_label(ctx, "ARGB8888");
+            mu_layout_row(ctx, 1, (int[]){48}, 48);
+            mu_draw_image(ctx, mu_vec2(0, 0),  (mu_Image)&square_argb8888);
+            mu_layout_row(ctx, 1, (int[]){-1}, 0);
+            mu_label(ctx, "RGB565");
+            mu_layout_row(ctx, 1, (int[]){48}, 48);
+            mu_draw_image(ctx, mu_vec2(0, 0),  (mu_Image)&square_rgb565);
+            mu_layout_row(ctx, 1, (int[]){-1}, 0);
+            mu_label(ctx, "BGR565");
+            mu_layout_row(ctx, 1, (int[]){48}, 48);
+            mu_draw_image(ctx, mu_vec2(0, 0),  (mu_Image)&square_bgr565);
+            mu_layout_end_column(ctx);
+
+            mu_layout_begin_column(ctx);
+            mu_label(ctx, "L8");
+            mu_layout_row(ctx, 1, (int[]){48}, 48);
+            mu_draw_image(ctx, mu_vec2(0, 0),  (mu_Image)&square_l8);
+            mu_layout_row(ctx, 1, (int[]){-1}, 0);
+            mu_label(ctx, "AL88");
+            mu_layout_row(ctx, 1, (int[]){48}, 48);
+            mu_draw_image(ctx, mu_vec2(0, 0),  (mu_Image)&square_al88);
+            mu_layout_row(ctx, 1, (int[]){-1}, 0);
+            mu_label(ctx, "MONO01");
+            mu_layout_row(ctx, 1, (int[]){48}, 48);
+            mu_draw_image(ctx, mu_vec2(0, 0),  (mu_Image)&square_mono01);
+            mu_layout_row(ctx, 1, (int[]){-1}, 0);
+            mu_label(ctx, "MONO10");
+            mu_layout_row(ctx, 1, (int[]){48}, 48);
+            mu_draw_image(ctx, mu_vec2(0, 0),  (mu_Image)&square_mono10);
+            mu_layout_end_column(ctx);
         }
 #endif /* CONFIG_MICROUI_DRAW_EXTENSIONS */
         mu_end_window(ctx);
