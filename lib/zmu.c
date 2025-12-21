@@ -203,7 +203,36 @@ static __always_inline void set_pixel_argb8888(int x, int y, uint32_t pixel)
 {
 	int index = (y * DISPLAY_WIDTH + x) * 4;
 	uint32_t *p = (uint32_t *)(display_buffer + index);
+#ifdef CONFIG_MICROUI_ALPHA_BLENDING
+	uint8_t src_a = (pixel >> 24) & 0xFF;
+
+	if (src_a == 255) {
+		*p = pixel;
+	} else if (src_a > 0) {
+		uint32_t dst = *p;
+		uint8_t dst_a = (dst >> 24) & 0xFF;
+		uint8_t dst_r = (dst >> 16) & 0xFF;
+		uint8_t dst_g = (dst >> 8) & 0xFF;
+		uint8_t dst_b = dst & 0xFF;
+
+		uint8_t src_r = (pixel >> 16) & 0xFF;
+		uint8_t src_g = (pixel >> 8) & 0xFF;
+		uint8_t src_b = pixel & 0xFF;
+
+		uint16_t inv_a = 255 - src_a;
+		uint16_t out_a = src_a + (dst_a * inv_a) / 255;
+
+		if (out_a > 0) {
+			uint8_t out_r = (src_r * src_a + dst_r * dst_a * inv_a / 255) / out_a;
+			uint8_t out_g = (src_g * src_a + dst_g * dst_a * inv_a / 255) / out_a;
+			uint8_t out_b = (src_b * src_a + dst_b * dst_a * inv_a / 255) / out_a;
+			*p = ((uint32_t)out_a << 24) | ((uint32_t)out_r << 16) |
+			     ((uint32_t)out_g << 8) | out_b;
+		}
+	}
+#else
 	*p = pixel;
+#endif
 }
 #endif
 
@@ -290,7 +319,28 @@ static __always_inline void set_pixel_al88(int x, int y, uint32_t pixel)
 {
 	int index = (y * DISPLAY_WIDTH + x) * 2;
 	uint16_t *p = (uint16_t *)(display_buffer + index);
+#ifdef CONFIG_MICROUI_ALPHA_BLENDING
+	uint8_t src_a = (pixel >> 8) & 0xFF;
+
+	if (src_a == 255) {
+		*p = (uint16_t)pixel;
+	} else if (src_a > 0) {
+		uint16_t dst = *p;
+		uint8_t dst_a = (dst >> 8) & 0xFF;
+		uint8_t dst_l = dst & 0xFF;
+		uint8_t src_l = pixel & 0xFF;
+
+		uint16_t inv_a = 255 - src_a;
+		uint16_t out_a = src_a + (dst_a * inv_a) / 255;
+
+		if (out_a > 0) {
+			uint8_t out_l = (src_l * src_a + dst_l * dst_a * inv_a / 255) / out_a;
+			*p = ((uint16_t)out_a << 8) | out_l;
+		}
+	}
+#else
 	*p = (uint16_t)pixel;
+#endif
 }
 #endif
 
@@ -565,6 +615,18 @@ static void renderer_draw_rect(mu_Rect rect, mu_Color color)
 		return;
 	}
 #endif /* CONFIG_MICROUI_RENDER_MONO */
+
+#ifdef CONFIG_MICROUI_ALPHA_BLENDING
+	/* When alpha blending with non-opaque color, must blend each pixel individually */
+	if (color.a < 255) {
+		for (int y = rect.y; y < rect.y + rect.h; y++) {
+			for (int x = rect.x; x < rect.x + rect.w; x++) {
+				set_pixel_unchecked(x, y, pixel);
+			}
+		}
+		return;
+	}
+#endif /* CONFIG_MICROUI_ALPHA_BLENDING */
 
 	for (int x = rect.x; x < rect.x + rect.w; x++) {
 		set_pixel_unchecked(x, rect.y, pixel);
@@ -972,6 +1034,15 @@ static void renderer_draw_image(mu_Vec2 pos, mu_Image image)
 
 	/* For non-mono formats, check if pixel formats match for fast path */
 	bool format_matches = (img_desc->pixel_format == display_caps.current_pixel_format);
+
+#ifdef CONFIG_MICROUI_ALPHA_BLENDING
+	/* When alpha blending is enabled, formats with alpha channel cannot use fast path */
+	bool has_alpha = (img_desc->pixel_format == PIXEL_FORMAT_ARGB_8888 ||
+			  img_desc->pixel_format == PIXEL_FORMAT_AL_88);
+	if (has_alpha) {
+		format_matches = false;
+	}
+#endif
 
 	if (format_matches) {
 		/* Fast path: direct memcpy when formats match */

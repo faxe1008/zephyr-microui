@@ -79,3 +79,14 @@ config MICROUI_RENDER_AL_88
     default y
     help
       Enable support for 8-bit alpha + 8-bit luminance pixel format rendering.
+
+config MICROUI_ALPHA_BLENDING
+    bool "Enable alpha blending"
+    default y
+    depends on MICROUI_RENDER_ARGB_8888 || MICROUI_RENDER_AL_88
+    help
+      Enable proper alpha blending when rendering pixels with an alpha channel.
+      When enabled, the alpha value of the source color is used to blend the
+      source color with the existing pixel value at that location. This produces
+      correct transparency effects but has a performance cost due to the need to
+      read the existing pixel value before writing.
