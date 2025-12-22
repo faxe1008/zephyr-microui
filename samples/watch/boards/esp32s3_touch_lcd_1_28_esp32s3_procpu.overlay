@@ -1,0 +1,6 @@
+
+/ {
+    aliases {
+        backlight-pwm = &pwm_lcd0;
+    };
+};
