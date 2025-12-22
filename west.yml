@@ -13,3 +13,4 @@ manifest:
           - cmsis_6
           - cmsis
           - hal_nordic
+          - hal_espressif

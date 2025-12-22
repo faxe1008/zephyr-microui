@@ -1,0 +1,21 @@
+sample:
+  name: MicroUI Watch
+  description: MicroUI immediate-mode GUI library demo for Zephyr OS on a watch like device.
+
+tests:
+  sample.modules.microui.watch:
+    filter: dt_chosen_enabled("zephyr,display")
+    harness: none
+    modules:
+      - microui
+    tags:
+      - samples
+      - display
+      - gui
+      - microui
+    platform_allow:
+      - native_sim/native/64
+      - esp32s3_touch_lcd_1_28/esp32s3/procpu
+    integration_platforms:
+      - native_sim/native/64
+
