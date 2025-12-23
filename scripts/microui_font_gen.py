@@ -85,7 +85,10 @@ def generate_font_data(
 
     font_height, max_width, avg_width = measure_font_dimensions(font, character_codes)
 
-    bitmap_width = max(8, min(32, 2 ** math.ceil(math.log2(max_width))))
+    # Support bitmap widths up to 64 bits (8 bytes per row) for large fonts
+    bitmap_width = max(8, 2 ** math.ceil(math.log2(max(max_width, 1))))
+    if bitmap_width > 64:
+        raise ValueError(f"Character width {max_width} exceeds maximum supported bitmap width of 64 bits")
     bytes_per_row = bitmap_width // 8
 
     print(f"Font height: {font_height}")
@@ -120,7 +123,7 @@ def measure_font_dimensions(font, character_codes):
     test_img = Image.new("1", (400, 200), color=0)
     test_draw = ImageDraw.Draw(test_img)
 
-    max_height = 0
+    max_bottom = 0
     max_width = 0
     total_width = 0
     char_count = 0
@@ -135,9 +138,9 @@ def measure_font_dimensions(font, character_codes):
         try:
             bbox = test_draw.textbbox((0, 0), char, font=font)
             width = bbox[2] - bbox[0]
-            height = bbox[3] - bbox[1]
-
-            max_height = max(max_height, height)
+            # Use bbox[3] (bottom y-coordinate) to ensure all descenders fit
+            # when glyphs are drawn at (0, 0)
+            max_bottom = max(max_bottom, bbox[3])
             max_width = max(max_width, width)
             total_width += width
             char_count += 1
@@ -148,10 +151,12 @@ def measure_font_dimensions(font, character_codes):
 
     avg_width = total_width / char_count if char_count > 0 else 8
 
-    max_height += 1
+    # Font height is the maximum y-coordinate any glyph extends to when drawn at (0,0)
+    # This ensures ascenders and descenders are fully captured
+    font_height = max_bottom + 1
     max_width = max(max_width, 4)
 
-    return max_height, max_width, avg_width
+    return font_height, max_width, avg_width
 
 
 def generate_variable_width_glyphs(font, bitmap_width, font_height, character_codes):
