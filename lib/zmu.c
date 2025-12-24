@@ -564,43 +564,44 @@ static __always_inline void draw_glyph(const struct mu_FontGlyph *glyph, int x, 
 		int screen_y = y + row;
 		if (font->bitmap_width <= 8) {
 			uint8_t row_data = glyph->bitmap[row];
-			for (int col = start_col; col < end_col; col++) {
-				if (row_data & (0x80 >> col)) {
-					set_pixel_unchecked(x + col, screen_y, pixel);
-				}
+			/* Mask out bits outside the visible range */
+			row_data &= (0xFF >> start_col);
+			row_data &= (0xFF << (8 - end_col));
+			while (row_data) {
+				int col = __builtin_clz((uint32_t)row_data) - 24;
+				set_pixel_unchecked(x + col, screen_y, pixel);
+				row_data &= ~(0x80 >> col);
 			}
 		} else if (font->bitmap_width <= 16) {
-			uint16_t row_data =
-				(glyph->bitmap[row * 2] << 8) | glyph->bitmap[row * 2 + 1];
-			for (int col = start_col; col < end_col; col++) {
-				if (row_data & (0x8000 >> col)) {
-					set_pixel_unchecked(x + col, screen_y, pixel);
-				}
+			uint16_t row_data = sys_get_be16(&glyph->bitmap[row * 2]);
+			/* Mask out bits outside the visible range */
+			row_data &= (0xFFFF >> start_col);
+			row_data &= (0xFFFF << (16 - end_col));
+			while (row_data) {
+				int col = __builtin_clz((uint32_t)row_data) - 16;
+				set_pixel_unchecked(x + col, screen_y, pixel);
+				row_data &= ~(0x8000 >> col);
 			}
 		} else if (font->bitmap_width <= 32) {
-			uint32_t row_data = ((uint32_t)glyph->bitmap[row * 4] << 24) |
-					    ((uint32_t)glyph->bitmap[row * 4 + 1] << 16) |
-					    ((uint32_t)glyph->bitmap[row * 4 + 2] << 8) |
-					    (uint32_t)glyph->bitmap[row * 4 + 3];
-			for (int col = start_col; col < end_col; col++) {
-				if (row_data & (0x80000000u >> col)) {
-					set_pixel_unchecked(x + col, screen_y, pixel);
-				}
+			uint32_t row_data = sys_get_be32(&glyph->bitmap[row * 4]);
+			/* Mask out bits outside the visible range */
+			row_data &= (0xFFFFFFFFu >> start_col);
+			row_data &= (0xFFFFFFFFu << (32 - end_col));
+			while (row_data) {
+				int col = __builtin_clz(row_data);
+				set_pixel_unchecked(x + col, screen_y, pixel);
+				row_data &= ~(0x80000000u >> col);
 			}
 		} else {
 			/* bitmap_width <= 64 */
-			uint64_t row_data = ((uint64_t)glyph->bitmap[row * 8] << 56) |
-					    ((uint64_t)glyph->bitmap[row * 8 + 1] << 48) |
-					    ((uint64_t)glyph->bitmap[row * 8 + 2] << 40) |
-					    ((uint64_t)glyph->bitmap[row * 8 + 3] << 32) |
-					    ((uint64_t)glyph->bitmap[row * 8 + 4] << 24) |
-					    ((uint64_t)glyph->bitmap[row * 8 + 5] << 16) |
-					    ((uint64_t)glyph->bitmap[row * 8 + 6] << 8) |
-					    (uint64_t)glyph->bitmap[row * 8 + 7];
-			for (int col = start_col; col < end_col; col++) {
-				if (row_data & (0x8000000000000000ull >> col)) {
-					set_pixel_unchecked(x + col, screen_y, pixel);
-				}
+			uint64_t row_data = sys_get_be64(&glyph->bitmap[row * 8]);
+			/* Mask out bits outside the visible range */
+			row_data &= (0xFFFFFFFFFFFFFFFFull >> start_col);
+			row_data &= (0xFFFFFFFFFFFFFFFFull << (64 - end_col));
+			while (row_data) {
+				int col = __builtin_clzll(row_data);
+				set_pixel_unchecked(x + col, screen_y, pixel);
+				row_data &= ~(0x8000000000000000ull >> col);
 			}
 		}
 	}
