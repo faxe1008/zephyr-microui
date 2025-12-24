@@ -90,3 +90,13 @@ config MICROUI_ALPHA_BLENDING
       source color with the existing pixel value at that location. This produces
       correct transparency effects but has a performance cost due to the need to
       read the existing pixel value before writing.
+
+config MICROUI_ARC_ATAN_APPROXIMATION
+    bool "Use atan approximation for arc drawing"
+    default y
+    depends on MICROUI_DRAW_EXTENSIONS
+    help
+      Use a fast integer approximation for atan2 when drawing arcs instead of
+      the math library's atan2f function. This can improve performance on
+      systems without hardware floating point support, at the cost of slightly
+      reduced accuracy in angle calculations.

@@ -21,6 +21,14 @@ LOG_MODULE_REGISTER(microui_zmu, LOG_LEVEL_INF);
 #define M_PI 3.14159265358979323846f
 #endif
 
+#ifndef M_PI_2
+#define M_PI_2 1.57079632679489661923f
+#endif
+
+#ifndef M_PI_4
+#define M_PI_4 0.78539816339744830962f
+#endif
+
 #define DISPLAY_NODE            DT_CHOSEN(zephyr_display)
 #define DISPLAY_WIDTH           DT_PROP(DISPLAY_NODE, width)
 #define DISPLAY_HEIGHT          DT_PROP(DISPLAY_NODE, height)
@@ -168,6 +176,18 @@ static __always_inline mu_Rect intersect_rects(mu_Rect r1, mu_Rect r2)
 		y2 = y1;
 	}
 	return mu_rect(x1, y1, x2 - x1, y2 - y1);
+}
+
+static __always_inline int arc_atan_ratio(int x, int y)
+{
+#ifdef CONFIG_MICROUI_ARC_ATAN_APPROXIMATION
+	/* Fast integer approximation of atan(x/y) scaled to 0-32 range */
+	int val = x * 255 / y; /* 0 - 255 */
+	return val * (770195 - (val - 255) * (val + 941)) / 6137491; /* 0 - 32 */
+#else
+	/* Use math library atan2f for accurate calculation */
+	return (int)((M_PI_2 - atan2f((float)y, (float)x)) * 32.0f / M_PI_4);
+#endif
 }
 
 #define ENABLED_CF_COUNT                                                                           \
@@ -893,59 +913,93 @@ static void renderer_draw_arc(mu_Vec2 center, int radius, int thickness, mu_Real
 			      mu_Real end_angle, mu_Color color)
 {
 	uint32_t pixel = color_to_pixel(color);
+	int cx = center.x;
+	int cy = center.y;
 
-	// Convert degrees to radians
-	mu_Real start_rad = start_angle * M_PI / (mu_Real)180.0;
-	mu_Real end_rad = end_angle * M_PI / (mu_Real)180.0;
+	/* Convert angles from degrees to 0-255 range (256 = 360 degrees)
+	 * 0° is at 3 o'clock, angles increase clockwise.
+	 */
+	int a_start = (int)(start_angle * 256 / 360) & 0xFF;
+	int a_end = (int)(end_angle * 256 / 360) & 0xFF;
 
-	// Normalize angles to 0-2π range
-	while (start_rad < 0) {
-		start_rad += 2 * M_PI;
-	}
-	while (end_rad < 0) {
-		end_rad += 2 * M_PI;
-	}
-	while (start_rad >= 2 * M_PI) {
-		start_rad -= 2 * M_PI;
-	}
-	while (end_rad >= 2 * M_PI) {
-		end_rad -= 2 * M_PI;
+	/* Calculate inner and outer radius from center radius and thickness */
+	int inner_radius = radius - thickness / 2;
+	int outer_radius = radius + (thickness - 1) / 2;
+
+	if (inner_radius < 0) {
+		inner_radius = 0;
 	}
 
-	// Handle case where arc crosses 0°
-	bool crosses_zero = end_rad < start_rad;
+	/* Manage angle inputs */
+	bool inverted = (a_start > a_end);
+	bool full = (a_start == a_end);
 
-	// Draw arc using parametric circle equations
-	for (int r = radius - thickness / 2; r <= radius + thickness / 2; r++) {
-		if (r <= 0) {
-			continue;
-		}
+	if (inverted) {
+		int tmp = a_start;
+		a_start = a_end;
+		a_end = tmp;
+	}
 
-		// Calculate step size based on radius for smooth arc
-		int steps = 2 * M_PI * r;
-		if (steps < 8) {
-			steps = 8;
-		}
+	/* Trace each arc radius with the Andres circle algorithm */
+	for (int r = inner_radius; r <= outer_radius; r++) {
+		int x = 0;
+		int y = r;
+		int d = r - 1;
 
-		mu_Real step = 2 * M_PI / steps;
+		/* Process each pixel of a 1/8th circle of radius r */
+		while (y >= x) {
+			/* Get the ratio (0-32) representing angle as fraction of 1/8th circle */
+			int ratio = arc_atan_ratio(x, y);
 
-		for (int i = 0; i < steps; i++) {
-			mu_Real angle = i * step;
-
-			// Check if angle is within arc range
-			bool in_range;
-			if (crosses_zero) {
-				in_range = (angle >= start_rad) || (angle <= end_rad);
-			} else {
-				in_range = (angle >= start_rad) && (angle <= end_rad);
+			/* Fill the pixels of the 8 sections of the circle,
+			 * but only on the arc defined by the angles (start and end).
+			 * Pixel positions are arranged so 0° is at 3 o'clock and
+			 * angles increase clockwise.
+			 */
+			/* Octant 1: 0° - 45° (3 o'clock going down-right) */
+			if (full || ((ratio >= a_start && ratio < a_end) ^ inverted)) {
+				set_pixel(cx + y, cy + x, pixel);
+			}
+			/* Octant 2: 45° - 90° */
+			if (full || ((ratio > (63 - a_end) && ratio <= (63 - a_start)) ^ inverted)) {
+				set_pixel(cx + x, cy + y, pixel);
+			}
+			/* Octant 3: 90° - 135° */
+			if (full || ((ratio >= (a_start - 64) && ratio < (a_end - 64)) ^ inverted)) {
+				set_pixel(cx - x, cy + y, pixel);
+			}
+			/* Octant 4: 135° - 180° */
+			if (full || ((ratio > (127 - a_end) && ratio <= (127 - a_start)) ^ inverted)) {
+				set_pixel(cx - y, cy + x, pixel);
+			}
+			/* Octant 5: 180° - 225° */
+			if (full || ((ratio >= (a_start - 128) && ratio < (a_end - 128)) ^ inverted)) {
+				set_pixel(cx - y, cy - x, pixel);
+			}
+			/* Octant 6: 225° - 270° */
+			if (full || ((ratio > (191 - a_end) && ratio <= (191 - a_start)) ^ inverted)) {
+				set_pixel(cx - x, cy - y, pixel);
+			}
+			/* Octant 7: 270° - 315° */
+			if (full || ((ratio >= (a_start - 192) && ratio < (a_end - 192)) ^ inverted)) {
+				set_pixel(cx + x, cy - y, pixel);
+			}
+			/* Octant 8: 315° - 360° */
+			if (full || ((ratio > (255 - a_end) && ratio <= (255 - a_start)) ^ inverted)) {
+				set_pixel(cx + y, cy - x, pixel);
 			}
 
-			if (in_range) {
-				// Calculate pixel position (0° is at 3 o'clock)
-				int x = center.x + (int)(r * cos(angle));
-				int y = center.y + (int)(r * sin(angle));
-
-				set_pixel(x, y, pixel);
+			/* Run Andres circle algorithm to get to the next pixel */
+			if (d >= 2 * x) {
+				d = d - 2 * x - 1;
+				x = x + 1;
+			} else if (d < 2 * (r - y)) {
+				d = d + 2 * y - 1;
+				y = y - 1;
+			} else {
+				d = d + 2 * (y - x - 1);
+				y = y - 1;
+				x = x + 1;
 			}
 		}
 	}
