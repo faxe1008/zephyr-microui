@@ -1151,6 +1151,109 @@ static void renderer_draw_image(mu_Vec2 pos, mu_Image image)
 	}
 }
 
+static void renderer_draw_triangle(mu_Vec2 p0, mu_Vec2 p1, mu_Vec2 p2, mu_Color color)
+{
+	uint32_t pixel = color_to_pixel(color);
+
+	/* Sort vertices by y-coordinate (p0.y <= p1.y <= p2.y) */
+	if (p0.y > p1.y) {
+		mu_Vec2 tmp = p0;
+		p0 = p1;
+		p1 = tmp;
+	}
+	if (p1.y > p2.y) {
+		mu_Vec2 tmp = p1;
+		p1 = p2;
+		p2 = tmp;
+	}
+	if (p0.y > p1.y) {
+		mu_Vec2 tmp = p0;
+		p0 = p1;
+		p1 = tmp;
+	}
+
+	/* Calculate clipping bounds */
+	int clip_x_min, clip_x_max, clip_y_min, clip_y_max;
+
+	if (likely(has_clip_rect)) {
+		clip_x_min = clip_rect.x;
+		clip_x_max = clip_rect.x + clip_rect.w - 1;
+		clip_y_min = clip_rect.y;
+		clip_y_max = clip_rect.y + clip_rect.h - 1;
+	} else {
+		clip_x_min = 0;
+		clip_x_max = DISPLAY_WIDTH - 1;
+		clip_y_min = 0;
+		clip_y_max = DISPLAY_HEIGHT - 1;
+	}
+
+	/* Early exit if triangle is completely outside clip bounds */
+	int tri_y_min = p0.y;
+	int tri_y_max = p2.y;
+	int tri_x_min = mu_min(p0.x, mu_min(p1.x, p2.x));
+	int tri_x_max = mu_max(p0.x, mu_max(p1.x, p2.x));
+
+	if (tri_y_max < clip_y_min || tri_y_min > clip_y_max ||
+	    tri_x_max < clip_x_min || tri_x_min > clip_x_max) {
+		return;
+	}
+
+	/* Handle degenerate triangle (all points on same horizontal line) */
+	if (p0.y == p2.y) {
+		if (p0.y < clip_y_min || p0.y > clip_y_max) {
+			return;
+		}
+		int min_x = mu_max(tri_x_min, clip_x_min);
+		int max_x = mu_min(tri_x_max, clip_x_max);
+		for (int x = min_x; x <= max_x; x++) {
+			set_pixel_unchecked(x, p0.y, pixel);
+		}
+		return;
+	}
+
+	/* Clamp y-range to clip bounds */
+	int y_start = mu_max(p0.y, clip_y_min);
+	int y_end = mu_min(p2.y, clip_y_max);
+
+	/* Rasterize using scanline algorithm */
+	int total_height = p2.y - p0.y;
+
+	for (int y = y_start; y <= y_end; y++) {
+		bool second_half = (y > p1.y) || (p1.y == p0.y);
+		int segment_height = second_half ? (p2.y - p1.y) : (p1.y - p0.y);
+
+		if (segment_height == 0) {
+			segment_height = 1;
+		}
+
+		/* Calculate interpolation factors using fixed-point arithmetic */
+		int alpha = (y - p0.y) * 256 / total_height;
+		int beta = second_half ? ((y - p1.y) * 256 / segment_height)
+				       : ((y - p0.y) * 256 / segment_height);
+
+		/* Calculate x coordinates on edge p0-p2 and on edge p0-p1 or p1-p2 */
+		int x_a = p0.x + ((p2.x - p0.x) * alpha) / 256;
+		int x_b = second_half ? (p1.x + ((p2.x - p1.x) * beta) / 256)
+				      : (p0.x + ((p1.x - p0.x) * beta) / 256);
+
+		/* Ensure x_a <= x_b */
+		if (x_a > x_b) {
+			int tmp = x_a;
+			x_a = x_b;
+			x_b = tmp;
+		}
+
+		/* Clamp x-range to clip bounds */
+		x_a = mu_max(x_a, clip_x_min);
+		x_b = mu_min(x_b, clip_x_max);
+
+		/* Draw horizontal line from x_a to x_b */
+		for (int x = x_a; x <= x_b; x++) {
+			set_pixel_unchecked(x, y, pixel);
+		}
+	}
+}
+
 #endif
 
 void mu_set_bg_color(mu_Color color)
@@ -1199,6 +1302,10 @@ void mu_render(void)
 			break;
 		case MU_COMMAND_IMAGE:
 			renderer_draw_image(cmd->image.pos, cmd->image.image);
+			break;
+		case MU_COMMAND_TRIANGLE:
+			renderer_draw_triangle(cmd->triangle.p0, cmd->triangle.p1,
+					       cmd->triangle.p2, cmd->triangle.color);
 			break;
 #endif
 		}

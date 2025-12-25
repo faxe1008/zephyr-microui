@@ -613,6 +613,25 @@ void mu_draw_image(mu_Context *ctx, mu_Vec2 pos, mu_Image image)
   if (clipped) { mu_set_clip(ctx, unclipped_rect, 0); }
 }
 
+void mu_draw_triangle(mu_Context *ctx, mu_Vec2 p0, mu_Vec2 p1, mu_Vec2 p2, mu_Color color)
+{
+  mu_Command *cmd;
+  int min_x = mu_min(p0.x, mu_min(p1.x, p2.x));
+  int min_y = mu_min(p0.y, mu_min(p1.y, p2.y));
+  int max_x = mu_max(p0.x, mu_max(p1.x, p2.x));
+  int max_y = mu_max(p0.y, mu_max(p1.y, p2.y));
+  mu_Rect rect = mu_rect(min_x, min_y, max_x - min_x, max_y - min_y);
+  int clipped = mu_check_clip(ctx, rect);
+  if (clipped == MU_CLIP_ALL ) { return; }
+  if (clipped == MU_CLIP_PART) { mu_set_clip(ctx, mu_get_clip_rect(ctx), MU_CLIPPING_ENABLED); }
+  cmd = mu_push_command(ctx, MU_COMMAND_TRIANGLE, sizeof(mu_TriangleCommand));
+  cmd->triangle.p0 = p0;
+  cmd->triangle.p1 = p1;
+  cmd->triangle.p2 = p2;
+  cmd->triangle.color = color;
+  if (clipped) { mu_set_clip(ctx, unclipped_rect, 0); }
+}
+
 #endif
 
 /*============================================================================
