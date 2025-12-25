@@ -83,24 +83,23 @@ static volatile mu_process_frame_cb frame_cb;
 static __always_inline const struct mu_FontGlyph *find_glyph(const struct mu_FontDescriptor *font,
 							     uint32_t codepoint)
 {
-	int left = 0;
-	int right = font->glyph_count - 1;
+	const struct mu_FontGlyph *glyphs = font->glyphs;
+	uint32_t len = font->glyph_count;
 
-	while (left <= right) {
-		int mid = left + (right - left) / 2;
-
-		if (font->glyphs[mid].codepoint == codepoint) {
-			return &font->glyphs[mid];
-		}
-
-		if (font->glyphs[mid].codepoint < codepoint) {
-			left = mid + 1;
-		} else {
-			right = mid - 1;
-		}
+	if (unlikely(len == 0)) {
+		return NULL;
 	}
 
-	return NULL;
+	/* Branchless binary search */
+	const struct mu_FontGlyph *base = glyphs;
+
+	while (len > 1) {
+		uint32_t half = len / 2;
+		base = (base[half].codepoint <= codepoint) ? &base[half] : base;
+		len -= half;
+	}
+
+	return (base->codepoint == codepoint) ? base : NULL;
 }
 
 static __always_inline int next_utf8_codepoint(const char *str, uint32_t *codepoint)
