@@ -490,10 +490,6 @@ static __always_inline void set_pixel_unchecked(int x, int y, uint32_t pixel)
 
 static __always_inline void set_pixel(int x, int y, uint32_t pixel)
 {
-	if ((unsigned)x >= (unsigned)DISPLAY_WIDTH || (unsigned)y >= (unsigned)DISPLAY_HEIGHT) {
-		return;
-	}
-
 	if (likely(has_clip_rect)) {
 		if (x < clip_rect.x || y < clip_rect.y || x >= clip_rect.x + clip_rect.w ||
 		    y >= clip_rect.y + clip_rect.h) {
@@ -831,7 +827,12 @@ static int renderer_get_text_height(mu_Font f)
 
 static void renderer_set_clip_rect(mu_Rect rect, int opt)
 {
-	clip_rect = rect;
+	static mu_Rect screen_rect = {0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT};
+	clip_rect = intersect_rects(rect, screen_rect);
+	if (clip_rect.w <= 0 || clip_rect.h <= 0) {
+		has_clip_rect = false;
+		return;
+	}
 	has_clip_rect = (opt & MU_CLIPPING_ENABLED);
 }
 
