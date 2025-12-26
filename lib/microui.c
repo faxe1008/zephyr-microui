@@ -774,6 +774,11 @@ void mu_draw_control_text(mu_Context *ctx, const char *str, mu_Rect rect,
   } else {
     pos.x = rect.x + ctx->style->padding;
   }
+  if (opt & MU_OPT_ALIGNTOP) {
+    pos.y = rect.y + ctx->style->padding;
+  } else if (opt & MU_OPT_ALIGNBOTTOM) {
+    pos.y = rect.y + rect.h - ctx->text_height(font) - ctx->style->padding;
+  }
   mu_draw_text(ctx, font, str, -1, pos, ctx->style->colors[colorid]);
   mu_pop_clip_rect(ctx);
 }
