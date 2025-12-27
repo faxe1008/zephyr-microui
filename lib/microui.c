@@ -476,11 +476,10 @@ static mu_Command* push_jump(mu_Context *ctx, mu_Command *dst) {
 }
 
 
-void mu_set_clip(mu_Context *ctx, mu_Rect rect, int opt) {
+void mu_set_clip(mu_Context *ctx, mu_Rect rect) {
   mu_Command *cmd;
   cmd = mu_push_command(ctx, MU_COMMAND_CLIP, sizeof(mu_ClipCommand));
   cmd->clip.rect = rect;
-  cmd->clip.opt = opt;
 }
 
 
@@ -511,7 +510,7 @@ void mu_draw_text(mu_Context *ctx, mu_Font font, const char *str, int len,
     pos.x, pos.y, ctx->text_width(font, str, len), ctx->text_height(font));
   int clipped = mu_check_clip(ctx, rect);
   if (clipped == MU_CLIP_ALL ) { return; }
-  if (clipped == MU_CLIP_PART) { mu_set_clip(ctx, mu_get_clip_rect(ctx), MU_CLIPPING_ENABLED); }
+  if (clipped == MU_CLIP_PART) { mu_set_clip(ctx, mu_get_clip_rect(ctx)); }
   /* add command */
   if (len < 0) { len = strlen(str); }
   cmd = mu_push_command(ctx, MU_COMMAND_TEXT, sizeof(mu_TextCommand) + len);
@@ -521,7 +520,7 @@ void mu_draw_text(mu_Context *ctx, mu_Font font, const char *str, int len,
   cmd->text.color = color;
   cmd->text.font = font;
   /* reset clipping if it was set */
-  if (clipped) { mu_set_clip(ctx, unclipped_rect, 0); }
+  if (clipped) { mu_set_clip(ctx, unclipped_rect); }
 }
 
 
@@ -530,14 +529,14 @@ void mu_draw_icon(mu_Context *ctx, int id, mu_Rect rect, mu_Color color) {
   /* do clip command if the rect isn't fully contained within the cliprect */
   int clipped = mu_check_clip(ctx, rect);
   if (clipped == MU_CLIP_ALL ) { return; }
-  if (clipped == MU_CLIP_PART) { mu_set_clip(ctx, mu_get_clip_rect(ctx), MU_CLIPPING_ENABLED); }
+  if (clipped == MU_CLIP_PART) { mu_set_clip(ctx, mu_get_clip_rect(ctx)); }
   /* do icon command */
   cmd = mu_push_command(ctx, MU_COMMAND_ICON, sizeof(mu_IconCommand));
   cmd->icon.id = id;
   cmd->icon.rect = rect;
   cmd->icon.color = color;
   /* reset clipping if it was set */
-  if (clipped) { mu_set_clip(ctx, unclipped_rect, 0); }
+  if (clipped) { mu_set_clip(ctx, unclipped_rect); }
 }
 
 #ifdef CONFIG_MICROUI_DRAW_EXTENSIONS
@@ -548,7 +547,7 @@ void mu_draw_arc(mu_Context *ctx, mu_Vec2 center, int radius, int thickness, mu_
   mu_Rect rect = mu_rect(center.x - radius, center.y - radius, radius * 2, radius * 2);
   int clipped = mu_check_clip(ctx, rect);
   if (clipped == MU_CLIP_ALL ) { return; }
-  if (clipped == MU_CLIP_PART) { mu_set_clip(ctx, mu_get_clip_rect(ctx), MU_CLIPPING_ENABLED); }
+  if (clipped == MU_CLIP_PART) { mu_set_clip(ctx, mu_get_clip_rect(ctx)); }
   cmd = mu_push_command(ctx, MU_COMMAND_ARC, sizeof(mu_ArcCommand));
   cmd->arc.center = center;
   cmd->arc.radius = radius;
@@ -557,7 +556,7 @@ void mu_draw_arc(mu_Context *ctx, mu_Vec2 center, int radius, int thickness, mu_
   cmd->arc.start_angle = start_angle;
   cmd->arc.end_angle = end_angle;
   /* reset clipping if it was set */
-  if (clipped) { mu_set_clip(ctx, unclipped_rect, 0); }
+  if (clipped) { mu_set_clip(ctx, unclipped_rect); }
 }
 
 void mu_draw_circle(mu_Context *ctx, mu_Vec2 center, int radius, mu_Color color)
@@ -567,13 +566,13 @@ void mu_draw_circle(mu_Context *ctx, mu_Vec2 center, int radius, mu_Color color)
   mu_Rect rect = mu_rect(center.x - radius, center.y - radius, radius * 2, radius * 2);
   int clipped = mu_check_clip(ctx, rect);
   if (clipped == MU_CLIP_ALL ) { return; }
-  if (clipped == MU_CLIP_PART) { mu_set_clip(ctx, mu_get_clip_rect(ctx), MU_CLIPPING_ENABLED); }
+  if (clipped == MU_CLIP_PART) { mu_set_clip(ctx, mu_get_clip_rect(ctx)); }
   cmd = mu_push_command(ctx, MU_COMMAND_CIRCLE, sizeof(mu_CircleCommand));
   cmd->circle.center = center;
   cmd->circle.radius = radius;
   cmd->circle.color = color;
   /* reset clipping if it was set */
-  if (clipped) { mu_set_clip(ctx, unclipped_rect, 0); }
+  if (clipped) { mu_set_clip(ctx, unclipped_rect); }
 }
 
 void mu_draw_line(mu_Context *ctx, mu_Vec2 p0, mu_Vec2 p1, int thickness, mu_Color color)
@@ -585,14 +584,14 @@ void mu_draw_line(mu_Context *ctx, mu_Vec2 p0, mu_Vec2 p1, int thickness, mu_Col
                         mu_abs(p1.y - p0.y) + thickness);
   int clipped = mu_check_clip(ctx, rect);
   if (clipped == MU_CLIP_ALL ) { return; }
-  if (clipped == MU_CLIP_PART) { mu_set_clip(ctx, mu_get_clip_rect(ctx), MU_CLIPPING_ENABLED); }
+  if (clipped == MU_CLIP_PART) { mu_set_clip(ctx, mu_get_clip_rect(ctx)); }
   cmd = mu_push_command(ctx, MU_COMMAND_LINE, sizeof(mu_LineCommand));
   cmd->line.p0 = p0;
   cmd->line.p1 = p1;
   cmd->line.thickness = thickness;
   cmd->line.color = color;
   /* reset clipping if it was set */
-  if (clipped) { mu_set_clip(ctx, unclipped_rect, 0); }
+  if (clipped) { mu_set_clip(ctx, unclipped_rect); }
 }
 
 void mu_draw_image(mu_Context *ctx, mu_Vec2 pos, mu_Image image)
@@ -602,11 +601,11 @@ void mu_draw_image(mu_Context *ctx, mu_Vec2 pos, mu_Image image)
   ctx->img_dimensions(image, &rect.w, &rect.h);
   int clipped = mu_check_clip(ctx, rect);
   if (clipped == MU_CLIP_ALL ) { return; }
-  if (clipped == MU_CLIP_PART) { mu_set_clip(ctx, mu_get_clip_rect(ctx), MU_CLIPPING_ENABLED); }
+  if (clipped == MU_CLIP_PART) { mu_set_clip(ctx, mu_get_clip_rect(ctx)); }
   cmd = mu_push_command(ctx, MU_COMMAND_IMAGE, sizeof(mu_ImageCommand));
   cmd->image.pos = pos;
   cmd->image.image = image;
-  if (clipped) { mu_set_clip(ctx, unclipped_rect, 0); }
+  if (clipped) { mu_set_clip(ctx, unclipped_rect); }
 }
 
 void mu_draw_triangle(mu_Context *ctx, mu_Vec2 p0, mu_Vec2 p1, mu_Vec2 p2, mu_Color color)
@@ -619,13 +618,13 @@ void mu_draw_triangle(mu_Context *ctx, mu_Vec2 p0, mu_Vec2 p1, mu_Vec2 p2, mu_Co
   mu_Rect rect = mu_rect(min_x, min_y, max_x - min_x, max_y - min_y);
   int clipped = mu_check_clip(ctx, rect);
   if (clipped == MU_CLIP_ALL ) { return; }
-  if (clipped == MU_CLIP_PART) { mu_set_clip(ctx, mu_get_clip_rect(ctx), MU_CLIPPING_ENABLED); }
+  if (clipped == MU_CLIP_PART) { mu_set_clip(ctx, mu_get_clip_rect(ctx)); }
   cmd = mu_push_command(ctx, MU_COMMAND_TRIANGLE, sizeof(mu_TriangleCommand));
   cmd->triangle.p0 = p0;
   cmd->triangle.p1 = p1;
   cmd->triangle.p2 = p2;
   cmd->triangle.color = color;
-  if (clipped) { mu_set_clip(ctx, unclipped_rect, 0); }
+  if (clipped) { mu_set_clip(ctx, unclipped_rect); }
 }
 
 #endif

@@ -48,7 +48,6 @@ static mu_Color bg_color = {90, 95, 100, 255};
 
 /* Clipping rectangle */
 static mu_Rect clip_rect = {0, 0, 0, 0};
-static bool has_clip_rect = false;
 
 /* Text width cache */
 #ifdef CONFIG_MICROUI_TEXT_WIDTH_CACHE
@@ -489,11 +488,9 @@ static __always_inline void set_pixel_unchecked(int x, int y, uint32_t pixel)
 
 static __always_inline void set_pixel(int x, int y, uint32_t pixel)
 {
-	if (likely(has_clip_rect)) {
-		if (x < clip_rect.x || y < clip_rect.y || x >= clip_rect.x + clip_rect.w ||
-		    y >= clip_rect.y + clip_rect.h) {
-			return;
-		}
+	if (x < clip_rect.x || y < clip_rect.y || x >= clip_rect.x + clip_rect.w ||
+	    y >= clip_rect.y + clip_rect.h) {
+		return;
 	}
 
 	set_pixel_unchecked(x, y, pixel);
@@ -540,9 +537,7 @@ static __always_inline void draw_glyph(const struct mu_FontGlyph *glyph, int x, 
 	mu_Rect display_rect = mu_rect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT);
 	mu_Rect visible = intersect_rects(glyph_rect, display_rect);
 
-	if (likely(has_clip_rect)) {
-		visible = intersect_rects(visible, clip_rect);
-	}
+	visible = intersect_rects(visible, clip_rect);
 
 	/* Early exit if completely clipped */
 	if (visible.w == 0 || visible.h == 0) {
@@ -616,7 +611,6 @@ static void renderer_init(void)
 	clip_rect.y = 0;
 	clip_rect.w = DISPLAY_WIDTH;
 	clip_rect.h = DISPLAY_HEIGHT;
-	has_clip_rect = false;
 
 	memset(display_buffer, 0, DISPLAY_BUFFER_SIZE);
 
@@ -824,15 +818,10 @@ static int renderer_get_text_height(mu_Font f)
 	return font->height;
 }
 
-static void renderer_set_clip_rect(mu_Rect rect, int opt)
+static void renderer_set_clip_rect(mu_Rect rect)
 {
 	static mu_Rect screen_rect = {0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT};
 	clip_rect = intersect_rects(rect, screen_rect);
-	if (clip_rect.w <= 0 || clip_rect.h <= 0) {
-		has_clip_rect = false;
-		return;
-	}
-	has_clip_rect = (opt & MU_CLIPPING_ENABLED);
 }
 
 #ifdef CONFIG_MICROUI_RENDER_CLEAR_BEFORE_DRAW
@@ -1055,10 +1044,7 @@ static void renderer_draw_image(mu_Vec2 pos, mu_Image image)
 	mu_Rect display_rect = mu_rect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT);
 	mu_Rect visible = intersect_rects(img_rect, display_rect);
 
-	/* Also intersect with clip rect if active */
-	if (likely(has_clip_rect)) {
-		visible = intersect_rects(visible, clip_rect);
-	}
+	visible = intersect_rects(visible, clip_rect);
 
 	/* Early exit if completely clipped */
 	if (visible.w == 0 || visible.h == 0) {
@@ -1175,17 +1161,10 @@ static void renderer_draw_triangle(mu_Vec2 p0, mu_Vec2 p1, mu_Vec2 p2, mu_Color 
 	/* Calculate clipping bounds */
 	int clip_x_min, clip_x_max, clip_y_min, clip_y_max;
 
-	if (likely(has_clip_rect)) {
-		clip_x_min = clip_rect.x;
-		clip_x_max = clip_rect.x + clip_rect.w - 1;
-		clip_y_min = clip_rect.y;
-		clip_y_max = clip_rect.y + clip_rect.h - 1;
-	} else {
-		clip_x_min = 0;
-		clip_x_max = DISPLAY_WIDTH - 1;
-		clip_y_min = 0;
-		clip_y_max = DISPLAY_HEIGHT - 1;
-	}
+	clip_x_min = clip_rect.x;
+	clip_x_max = clip_rect.x + clip_rect.w - 1;
+	clip_y_min = clip_rect.y;
+	clip_y_max = clip_rect.y + clip_rect.h - 1;
 
 	/* Early exit if triangle is completely outside clip bounds */
 	int tri_y_min = p0.y;
@@ -1285,7 +1264,7 @@ void mu_render(void)
 			renderer_draw_icon(cmd->icon.id, cmd->icon.rect, cmd->icon.color);
 			break;
 		case MU_COMMAND_CLIP:
-			renderer_set_clip_rect(cmd->clip.rect, cmd->clip.opt);
+			renderer_set_clip_rect(cmd->clip.rect);
 			break;
 #ifdef CONFIG_MICROUI_DRAW_EXTENSIONS
 		case MU_COMMAND_ARC:
