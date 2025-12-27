@@ -18,7 +18,6 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-
 MU_FONT_DECLARE(montserrat_12);
 
 MU_IMAGE_DECLARE(square_rgb888);
@@ -165,132 +164,164 @@ static void test_window(mu_Context *ctx)
 		}
 
 #ifdef CONFIG_MICROUI_DRAW_EXTENSIONS
-        if (mu_header_ex(ctx, "Watch Face", 0)) {
-            static uint32_t ticks, seconds, minutes, hours;
+		if (mu_header_ex(ctx, "Watch Face", 0)) {
+			static uint32_t ticks, seconds, minutes, hours;
 
-            /* Advance time based on refresh period */
-            ticks++;
-            uint32_t ticks_per_second = (1000 / CONFIG_MICROUI_DISPLAY_REFRESH_PERIOD) / 4;
+			/* Advance time based on refresh period */
+			ticks++;
+			uint32_t ticks_per_second =
+				(1000 / CONFIG_MICROUI_DISPLAY_REFRESH_PERIOD) / 4;
 
-            if (ticks >= ticks_per_second) {
-                ticks = 0;
-                seconds++;
-                if (seconds >= 60) {
-                    seconds = 0;
-                    minutes++;
-                    if (minutes >= 60) {
-                        minutes = 0;
-                        hours++;
-                        if (hours >= 12) {
-                            hours = 0;
-                        }
-                    }
-                }
-            }
+			if (ticks >= ticks_per_second) {
+				ticks = 0;
+				seconds++;
+				if (seconds >= 60) {
+					seconds = 0;
+					minutes++;
+					if (minutes >= 60) {
+						minutes = 0;
+						hours++;
+						if (hours >= 12) {
+							hours = 0;
+						}
+					}
+				}
+			}
 
-            /* Watch face dimensions */
-            int watch_size = 200;
-            int radius = watch_size / 2 - 10;
+			/* Watch face dimensions */
+			int watch_size = 200;
+			int radius = watch_size / 2 - 10;
 
-            mu_layout_row(ctx, 1, (int[]){watch_size}, watch_size);
-            mu_Rect r = mu_layout_next(ctx);
+			mu_layout_row(ctx, 1, (int[]){watch_size}, watch_size);
+			mu_Rect r = mu_layout_next(ctx);
 
-            int center_x = r.x + watch_size / 2;
-            int center_y = r.y + watch_size / 2;
-            mu_Vec2 center = {center_x, center_y};
+			int center_x = r.x + watch_size / 2;
+			int center_y = r.y + watch_size / 2;
+			mu_Vec2 center = {center_x, center_y};
 
-            /* Draw watch face circle */
-            mu_draw_circle(ctx, center, radius, mu_color(255, 255, 255, 255));
+			/* Draw watch face circle */
+			mu_draw_circle(ctx, center, radius, mu_color(255, 255, 255, 255));
 
-            /* Draw hour markers */
-            for (int i = 0; i < 12; i++) {
-                double angle = (i * 30.0 - 90.0) * M_PI / 180.0;
-                int inner_r = radius - 10;
-                int outer_r = radius - 3;
-                mu_Vec2 p0 = {center_x + (int)(cos(angle) * inner_r),
-                              center_y + (int)(sin(angle) * inner_r)};
-                mu_Vec2 p1 = {center_x + (int)(cos(angle) * outer_r),
-                              center_y + (int)(sin(angle) * outer_r)};
-                mu_draw_line(ctx, p0, p1, 2, mu_color(0, 0, 0, 255));
-            }
+			/* Draw hour markers */
+			for (int i = 0; i < 12; i++) {
+				double angle = (i * 30.0 - 90.0) * M_PI / 180.0;
+				int inner_r = radius - 10;
+				int outer_r = radius - 3;
+				mu_Vec2 p0 = {center_x + (int)(cos(angle) * inner_r),
+					      center_y + (int)(sin(angle) * inner_r)};
+				mu_Vec2 p1 = {center_x + (int)(cos(angle) * outer_r),
+					      center_y + (int)(sin(angle) * outer_r)};
+				mu_draw_line(ctx, p0, p1, 2, mu_color(0, 0, 0, 255));
+			}
 
-            /* Calculate hand angles (in radians, starting from 12 o'clock position) */
-            double second_angle = ((seconds * 6.0) - 90.0) * M_PI / 180.0;
-            double minute_angle = ((minutes * 6.0 + seconds * 0.1) - 90.0) * M_PI / 180.0;
-            double hour_angle = ((hours * 30.0 + minutes * 0.5) - 90.0) * M_PI / 180.0;
+			/* Calculate hand angles (in radians, starting from 12 o'clock position) */
+			double second_angle = ((seconds * 6.0) - 90.0) * M_PI / 180.0;
+			double minute_angle =
+				((minutes * 6.0 + seconds * 0.1) - 90.0) * M_PI / 180.0;
+			double hour_angle = ((hours * 30.0 + minutes * 0.5) - 90.0) * M_PI / 180.0;
 
-            /* Draw hour hand (shortest, thickest) */
-            int hour_length = radius * 50 / 100;
-            mu_Vec2 hour_end = {center_x + (int)(cos(hour_angle) * hour_length),
-                                center_y + (int)(sin(hour_angle) * hour_length)};
-            mu_draw_line(ctx, center, hour_end, 4, mu_color(0, 0, 0, 255));
+			/* Draw hour hand (shortest, thickest) */
+			int hour_length = radius * 50 / 100;
+			mu_Vec2 hour_end = {center_x + (int)(cos(hour_angle) * hour_length),
+					    center_y + (int)(sin(hour_angle) * hour_length)};
+			mu_draw_line(ctx, center, hour_end, 4, mu_color(0, 0, 0, 255));
 
-            /* Draw minute hand (medium length) */
-            int minute_length = radius * 70 / 100;
-            mu_Vec2 minute_end = {center_x + (int)(cos(minute_angle) * minute_length),
-                                  center_y + (int)(sin(minute_angle) * minute_length)};
-            mu_draw_line(ctx, center, minute_end, 3, mu_color(0, 0, 0, 255));
+			/* Draw minute hand (medium length) */
+			int minute_length = radius * 70 / 100;
+			mu_Vec2 minute_end = {center_x + (int)(cos(minute_angle) * minute_length),
+					      center_y + (int)(sin(minute_angle) * minute_length)};
+			mu_draw_line(ctx, center, minute_end, 3, mu_color(0, 0, 0, 255));
 
-            /* Draw second hand (longest, thinnest, red) */
-            int second_length = radius * 85 / 100;
-            mu_Vec2 second_end = {center_x + (int)(cos(second_angle) * second_length),
-                                  center_y + (int)(sin(second_angle) * second_length)};
-            mu_draw_line(ctx, center, second_end, 1, mu_color(255, 0, 0, 255));
+			/* Draw second hand (longest, thinnest, red) */
+			int second_length = radius * 85 / 100;
+			mu_Vec2 second_end = {center_x + (int)(cos(second_angle) * second_length),
+					      center_y + (int)(sin(second_angle) * second_length)};
+			mu_draw_line(ctx, center, second_end, 1, mu_color(255, 0, 0, 255));
 
-            /* Draw center dot */
-            mu_draw_circle(ctx, center, 5, mu_color(0, 0, 0, 255));
-        }
+			/* Draw center dot */
+			mu_draw_circle(ctx, center, 5, mu_color(0, 0, 0, 255));
+		}
 
+		if (mu_header_ex(ctx, "Images", MU_OPT_EXPANDED)) {
+			mu_layout_row(ctx, 2, (int[]){140, -1}, 0);
+			mu_layout_begin_column(ctx);
+			mu_label(ctx, "RGB888");
+			mu_layout_row(ctx, 1, (int[]){48}, 48);
+			mu_Rect img_rect = mu_layout_next(ctx);
+			mu_draw_image(ctx, mu_vec2(img_rect.x, img_rect.y),
+				      (mu_Image)&square_rgb888);
+			mu_layout_row(ctx, 1, (int[]){-1}, 0);
+			mu_label(ctx, "ARGB8888");
+			mu_layout_row(ctx, 1, (int[]){48}, 48);
+			img_rect = mu_layout_next(ctx);
+			mu_draw_image(ctx, mu_vec2(img_rect.x, img_rect.y),
+				      (mu_Image)&square_argb8888);
+			mu_layout_row(ctx, 1, (int[]){-1}, 0);
+			mu_label(ctx, "RGB565");
+			mu_layout_row(ctx, 1, (int[]){48}, 48);
+			img_rect = mu_layout_next(ctx);
+			mu_draw_image(ctx, mu_vec2(img_rect.x, img_rect.y),
+				      (mu_Image)&square_rgb565);
+			mu_layout_row(ctx, 1, (int[]){-1}, 0);
+			mu_label(ctx, "BGR565");
+			mu_layout_row(ctx, 1, (int[]){48}, 48);
+			img_rect = mu_layout_next(ctx);
+			mu_draw_image(ctx, mu_vec2(img_rect.x, img_rect.y),
+				      (mu_Image)&square_bgr565);
+			mu_layout_end_column(ctx);
 
-        if (mu_header_ex(ctx, "Images", MU_OPT_EXPANDED))
-        {
-            mu_layout_row(ctx, 2, (int[]){140, -1}, 0);
-            mu_layout_begin_column(ctx);
-            mu_label(ctx, "RGB888");
-            mu_layout_row(ctx, 1, (int[]){48}, 48);
-            mu_Rect img_rect = mu_layout_next(ctx);
-            mu_draw_image(ctx, mu_vec2(img_rect.x, img_rect.y), (mu_Image)&square_rgb888);
-            mu_layout_row(ctx, 1, (int[]){-1}, 0);
-            mu_label(ctx, "ARGB8888");
-            mu_layout_row(ctx, 1, (int[]){48}, 48);
-            img_rect = mu_layout_next(ctx);
-            mu_draw_image(ctx, mu_vec2(img_rect.x, img_rect.y),  (mu_Image)&square_argb8888);
-            mu_layout_row(ctx, 1, (int[]){-1}, 0);
-            mu_label(ctx, "RGB565");
-            mu_layout_row(ctx, 1, (int[]){48}, 48);
-            img_rect = mu_layout_next(ctx);
-            mu_draw_image(ctx, mu_vec2(img_rect.x, img_rect.y),  (mu_Image)&square_rgb565);
-            mu_layout_row(ctx, 1, (int[]){-1}, 0);
-            mu_label(ctx, "BGR565");
-            mu_layout_row(ctx, 1, (int[]){48}, 48);
-            img_rect = mu_layout_next(ctx);
-            mu_draw_image(ctx, mu_vec2(img_rect.x, img_rect.y),  (mu_Image)&square_bgr565);
-            mu_layout_end_column(ctx);
+			mu_layout_begin_column(ctx);
+			mu_label(ctx, "L8");
+			mu_layout_row(ctx, 1, (int[]){48}, 48);
+			img_rect = mu_layout_next(ctx);
+			mu_draw_image(ctx, mu_vec2(img_rect.x, img_rect.y), (mu_Image)&square_l8);
+			mu_layout_row(ctx, 1, (int[]){-1}, 0);
+			mu_label(ctx, "AL88");
+			mu_layout_row(ctx, 1, (int[]){48}, 48);
+			img_rect = mu_layout_next(ctx);
+			mu_draw_image(ctx, mu_vec2(img_rect.x, img_rect.y), (mu_Image)&square_al88);
+			mu_layout_row(ctx, 1, (int[]){-1}, 0);
+			mu_label(ctx, "MONO01");
+			mu_layout_row(ctx, 1, (int[]){48}, 48);
+			img_rect = mu_layout_next(ctx);
+			mu_draw_image(ctx, mu_vec2(img_rect.x, img_rect.y),
+				      (mu_Image)&square_mono01);
+			mu_layout_row(ctx, 1, (int[]){-1}, 0);
+			mu_label(ctx, "MONO10");
+			mu_layout_row(ctx, 1, (int[]){48}, 48);
+			img_rect = mu_layout_next(ctx);
+			mu_draw_image(ctx, mu_vec2(img_rect.x, img_rect.y),
+				      (mu_Image)&square_mono10);
+			mu_layout_end_column(ctx);
+		}
 
-            mu_layout_begin_column(ctx);
-            mu_label(ctx, "L8");
-            mu_layout_row(ctx, 1, (int[]){48}, 48);
-            img_rect = mu_layout_next(ctx);
-            mu_draw_image(ctx, mu_vec2(img_rect.x, img_rect.y),  (mu_Image)&square_l8);
-            mu_layout_row(ctx, 1, (int[]){-1}, 0);
-            mu_label(ctx, "AL88");
-            mu_layout_row(ctx, 1, (int[]){48}, 48);
-            img_rect = mu_layout_next(ctx);
-            mu_draw_image(ctx, mu_vec2(img_rect.x, img_rect.y),  (mu_Image)&square_al88);
-            mu_layout_row(ctx, 1, (int[]){-1}, 0);
-            mu_label(ctx, "MONO01");
-            mu_layout_row(ctx, 1, (int[]){48}, 48);
-            img_rect = mu_layout_next(ctx);
-            mu_draw_image(ctx, mu_vec2(img_rect.x, img_rect.y),  (mu_Image)&square_mono01);
-            mu_layout_row(ctx, 1, (int[]){-1}, 0);
-            mu_label(ctx, "MONO10");
-            mu_layout_row(ctx, 1, (int[]){48}, 48);
-            img_rect = mu_layout_next(ctx);
-            mu_draw_image(ctx, mu_vec2(img_rect.x, img_rect.y),  (mu_Image)&square_mono10);
-            mu_layout_end_column(ctx);
-        }
+		if (mu_header_ex(ctx, "Flex Layout", 0)) {
+			/* Equal flex: 1:1:1 distribution */
+			mu_layout_row(ctx, 1, (int[]){-1}, 0);
+			mu_label(ctx, "Equal flex (1:1:1):");
+			mu_layout_row(ctx, 3, (int[]){MU_FLEX(1), MU_FLEX(1), MU_FLEX(1)}, 0);
+			mu_button(ctx, "A");
+			mu_button(ctx, "B");
+			mu_button(ctx, "C");
+
+			/* Weighted flex: 1:2:1 distribution */
+			mu_layout_row(ctx, 1, (int[]){-1}, 0);
+			mu_label(ctx, "Weighted flex (1:2:1):");
+			mu_layout_row(ctx, 3, (int[]){MU_FLEX(1), MU_FLEX(2), MU_FLEX(1)}, 0);
+			mu_button(ctx, "A 25%");
+			mu_button(ctx, "B 50%");
+			mu_button(ctx, "C 25%");
+
+			/* Mixed: fixed + flex */
+			mu_layout_row(ctx, 1, (int[]){-1}, 0);
+			mu_label(ctx, "Fixed 60px + flex:");
+			mu_layout_row(ctx, 3, (int[]){60, MU_FLEX(1), MU_FLEX(1)}, 0);
+			mu_button(ctx, "60px");
+			mu_button(ctx, "Flex 1");
+			mu_button(ctx, "Flex 2");
+		}
 #endif /* CONFIG_MICROUI_DRAW_EXTENSIONS */
-        mu_end_window(ctx);
+		mu_end_window(ctx);
 	}
 }
 
