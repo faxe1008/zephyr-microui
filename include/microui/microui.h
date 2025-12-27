@@ -30,6 +30,12 @@
 #define mu_clamp(x, a, b)       mu_min(b, mu_max(a, x))
 #define mu_abs(x)               ((x) < 0 ? -(x) : (x))
 
+/* Flex layout macros - encode flex weight as a special negative value */
+#define MU_FLEX_BASE            (-0x10000)
+#define MU_FLEX(x)              (MU_FLEX_BASE - (x))
+#define MU_IS_FLEX(w)           ((w) <= MU_FLEX_BASE)
+#define MU_FLEX_WEIGHT(w)       (-(w) - (-MU_FLEX_BASE))
+
 enum {
   MU_CLIP_PART = 1,
   MU_CLIP_ALL

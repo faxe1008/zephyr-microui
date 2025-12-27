@@ -712,7 +712,42 @@ mu_Rect mu_layout_next(mu_Context *ctx) {
     res.h = layout->size.y;
     if (res.w == 0) { res.w = style->size.x + style->padding * 2; }
     if (res.h == 0) { res.h = style->size.y + style->padding * 2; }
-    if (res.w <  0) { res.w += layout->body.w - res.x + 1; }
+
+    /* handle flex layout */
+    if (MU_IS_FLEX(res.w)) {
+      int total_flex = 0;
+      int fixed_width = 0;
+      int flex_count = 0;
+      int i;
+
+      /* calculate total flex weight and fixed widths */
+      for (i = 0; i < layout->items; i++) {
+        int w = layout->widths[i];
+        if (MU_IS_FLEX(w)) {
+          total_flex += MU_FLEX_WEIGHT(w);
+          flex_count++;
+        } else if (w > 0) {
+          fixed_width += w;
+        } else if (w == 0) {
+          fixed_width += style->size.x + style->padding * 2;
+        }
+        /* negative (fill remaining) values handled separately below */
+      }
+
+      if (total_flex > 0) {
+        /* calculate available space for flex items */
+        int total_spacing = (layout->items - 1) * style->spacing;
+        int available = layout->body.w - layout->indent - fixed_width - total_spacing;
+
+        /* distribute space proportionally based on flex weight */
+        int my_flex = MU_FLEX_WEIGHT(res.w);
+        res.w = (available * my_flex) / total_flex;
+        if (res.w < 0) { res.w = 0; }
+      }
+    } else if (res.w < 0) {
+      /* original behavior: fill remaining space */
+      res.w += layout->body.w - res.x + 1;
+    }
     if (res.h <  0) { res.h += layout->body.h - res.y + 1; }
 
     layout->item_index++;
