@@ -121,10 +121,6 @@ enum {
   MU_KEY_RETURN       = (1 << 4)
 };
 
-enum {
-  MU_CLIPPING_ENABLED = (1 << 0),
-};
-
 typedef struct mu_Context mu_Context;
 typedef unsigned mu_Id;
 typedef MU_REAL mu_Real;
