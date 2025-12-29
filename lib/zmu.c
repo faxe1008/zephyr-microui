@@ -1312,6 +1312,12 @@ bool mu_handle_tick(void)
 	mu_handle_input_events();
 #endif /* CONFIG_MICROUI_INPUT */
 
+	/* Yield to allow the input thread to process any pending input events.
+	 * This prevents the render loop from starving the input subsystem when
+	 * frames are updated continuously (e.g., during animations).
+	 */
+	k_yield();
+
 	if (frame_cb) {
 		frame_cb(&mu_ctx);
 	}
@@ -1338,8 +1344,12 @@ static void microui_loop_work(struct k_work *work)
 	int64_t render_time = k_uptime_get() - current_time;
 	int64_t wait_time = CONFIG_MICROUI_DISPLAY_REFRESH_PERIOD - render_time;
 
-	if (wait_time < 0) {
-		wait_time = 0;
+	/* Ensure a minimum wait time of 1ms to prevent starving other threads
+	 * (e.g., the input thread) when rendering takes longer than the
+	 * configured refresh period.
+	 */
+	if (wait_time < 1) {
+		wait_time = 1;
 	}
 
 	k_work_schedule_for_queue(&mu_work_queue, k_work_delayable_from_work(work),
