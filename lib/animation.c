@@ -146,20 +146,16 @@ static const mu_EasingFunc easing_funcs[] = {
 
 BUILD_ASSERT(ARRAY_SIZE(easing_funcs) == MU_EASE_MAX, "Easing function lookup array size mismatch");
 
-/*
- * Animation pool management
- * Uses the same pool pattern as containers and treenodes in MicroUI
- */
+mu_AnimId mu_anim_id(const char *name)
+{
+	mu_AnimId hash = 2166136261u;
+	while (*name) {
+		hash ^= (unsigned char)*name++;
+		hash *= 16777619u;
+	}
+	return hash;
+}
 
-/**
- * @brief Get or create an animation state slot for the given ID
- *
- * @param ctx    MicroUI context
- * @param id     Animation ID (hash)
- * @param create If true, create a new slot if not found
- *
- * @return Pointer to animation state, or NULL if not found and create is false
- */
 static mu_AnimState *get_anim_state(mu_Context *ctx, mu_Id id, bool create)
 {
 	/* First, look for existing slot with this ID */

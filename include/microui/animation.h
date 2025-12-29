@@ -32,25 +32,9 @@ extern "C" {
  * @brief Animation ID type (alias for mu_Id)
  *
  * Used to uniquely identify animations in the animation pool.
- * Create using mu_anim_id("name").
+ * Create using mu_anim_id("name") or ensure uniqueness manually.
  */
 typedef mu_Id mu_AnimId;
-
-/**
- * @brief Compute FNV-1a hash of a string
- *
- * @param str Null-terminated string to hash
- * @return Hash value suitable for use as mu_AnimId
- */
-static inline mu_AnimId mu_hash_string(const char *str)
-{
-	mu_AnimId hash = 2166136261u; /* FNV offset basis */
-	while (*str) {
-		hash ^= (unsigned char)*str++;
-		hash *= 16777619u; /* FNV prime */
-	}
-	return hash;
-}
 
 /**
  * @brief Create an animation ID from a string
@@ -68,10 +52,7 @@ static inline mu_AnimId mu_hash_string(const char *str)
  * mu_Real x = mu_anim(ctx, mu_anim_id("move"), 0.0, 100.0, 300, MU_EASE_OUT);
  * @endcode
  */
-static inline mu_AnimId mu_anim_id(const char *name)
-{
-	return mu_hash_string(name);
-}
+mu_AnimId mu_anim_id(const char *name);
 
 /**
  * @brief Built-in easing types for use with mu_anim()
