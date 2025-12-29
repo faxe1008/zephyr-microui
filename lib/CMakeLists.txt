@@ -6,5 +6,6 @@ if(CONFIG_MICROUI)
 zephyr_library()
 zephyr_library_sources(microui.c zmu.c)
 zephyr_library_sources_ifdef(CONFIG_MICROUI_INPUT input.c)
+zephyr_library_sources_ifdef(CONFIG_MICROUI_ANIMATIONS animation.c)
 
 endif()

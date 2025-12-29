@@ -137,7 +137,7 @@ void mu_init(mu_Context *ctx) {
 
 
 void mu_begin(mu_Context *ctx) {
-  expect(ctx->text_width && ctx->text_height);
+  expect(ctx->text_width && ctx->text_height && ctx->get_time_ms);
   ctx->command_list.idx = 0;
   ctx->root_list.idx = 0;
   ctx->scroll_target = NULL;
@@ -146,6 +146,7 @@ void mu_begin(mu_Context *ctx) {
   ctx->mouse_delta.x = ctx->mouse_pos.x - ctx->last_mouse_pos.x;
   ctx->mouse_delta.y = ctx->mouse_pos.y - ctx->last_mouse_pos.y;
   ctx->frame++;
+  ctx->curr_time_ms = ctx->get_time_ms();
 }
 
 

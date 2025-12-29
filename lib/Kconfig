@@ -55,5 +55,6 @@ config MICROUI_EVENT_LOOP_STACK_SIZE
 
 rsource "Kconfig.draw"
 rsource "Kconfig.memory"
+rsource "Kconfig.animation"
 
 endif
