@@ -70,3 +70,14 @@ tests:
       - CONFIG_SDL_DISPLAY_DEFAULT_PIXEL_FORMAT_MONO01=y
       - CONFIG_MICROUI_BITS_PER_PIXEL=1
       - CONFIG_MICROUI_EVENT_LOOP=n
+
+  sample.modules.microui.demo.animations:
+    extra_configs:
+      - CONFIG_MICROUI_ANIMATIONS=y
+      - CONFIG_MICROUI_DRAW_EXTENSIONS=y
+
+  sample.modules.microui.demo.animations_all_easings:
+    extra_configs:
+      - CONFIG_MICROUI_ANIMATIONS=y
+      - CONFIG_MICROUI_ANIMATION_POOL_SIZE=16
+      - CONFIG_MICROUI_DRAW_EXTENSIONS=y
