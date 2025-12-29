@@ -14,6 +14,10 @@
 #include <microui/font.h>
 #include <microui/image.h>
 
+#ifdef CONFIG_MICROUI_ANIMATIONS
+#include <microui/animation.h>
+#endif
+
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(microui_zmu, LOG_LEVEL_INF);
 
@@ -1387,6 +1391,7 @@ int mu_setup(mu_process_frame_cb cb)
 	mu_ctx.text_width = renderer_get_text_width;
 	mu_ctx.text_height = renderer_get_text_height;
 	mu_ctx.img_dimensions = mu_get_img_dimensions;
+	mu_ctx.get_time_ms = k_uptime_get_32;
 
 #ifdef CONFIG_MICROUI_EVENT_LOOP
 	k_work_queue_init(&mu_work_queue);

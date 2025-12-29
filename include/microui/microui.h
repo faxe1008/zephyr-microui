@@ -8,6 +8,8 @@
 #ifndef MICROUI_H
 #define MICROUI_H
 
+#include <stdint.h>
+
 #define MU_VERSION "2.02"
 
 #define MU_COMMANDLIST_SIZE     CONFIG_MICROUI_COMMANDLIST_SIZE
@@ -18,6 +20,9 @@
 #define MU_LAYOUTSTACK_SIZE     CONFIG_MICROUI_LAYOUTSTACK_SIZE
 #define MU_CONTAINERPOOL_SIZE   CONFIG_MICROUI_CONTAINERPOOL_SIZE
 #define MU_TREENODEPOOL_SIZE    CONFIG_MICROUI_TREENODEPOOL_SIZE
+#ifdef CONFIG_MICROUI_ANIMATIONS
+#define MU_ANIM_POOL_SIZE       CONFIG_MICROUI_ANIMATION_POOL_SIZE
+#endif
 #define MU_MAX_WIDTHS           CONFIG_MICROUI_MAX_WIDTHS
 #define MU_REAL                 float
 #define MU_REAL_FMT             "%.3g"
@@ -199,12 +204,36 @@ typedef struct {
   mu_Color colors[MU_COLOR_MAX];
 } mu_Style;
 
+#ifdef CONFIG_MICROUI_ANIMATIONS
+/**
+ * @brief Easing function pointer type
+ */
+typedef mu_Real (*mu_EasingFunc)(mu_Real t);
+
+/**
+ * @brief Animation state for immediate-mode animations
+ *
+ * Stores the cached state for a single animation, identified by ID.
+ */
+typedef struct {
+  mu_Real current;         /**< Current animated value */
+  mu_Real start;           /**< Start value */
+  mu_Real end;             /**< End value */
+  uint32_t start_time_ms;  /**< Start time */
+  uint32_t duration_ms;    /**< Duration */
+  mu_EasingFunc easing;    /**< Easing function pointer */
+  uint8_t finished : 1;    /**< Whether animation has completed */
+  uint8_t loop : 1;        /**< Whether animation should loop */
+} mu_AnimState;
+#endif
+
 struct mu_Context {
   /* callbacks */
   int (*text_width)(mu_Font font, const char *str, int len);
   int (*text_height)(mu_Font font);
   void(*img_dimensions)(mu_Image image, int* width, int* height);
   void (*draw_frame)(mu_Context *ctx, mu_Rect rect, int colorid);
+  uint32_t (*get_time_ms)(void);
   /* core state */
   mu_Style _style;
   mu_Style *style;
@@ -231,6 +260,11 @@ struct mu_Context {
   mu_PoolItem container_pool[MU_CONTAINERPOOL_SIZE];
   mu_Container containers[MU_CONTAINERPOOL_SIZE];
   mu_PoolItem treenode_pool[MU_TREENODEPOOL_SIZE];
+#ifdef CONFIG_MICROUI_ANIMATIONS
+  mu_PoolItem anim_pool[MU_ANIM_POOL_SIZE];
+  mu_AnimState anim_states[MU_ANIM_POOL_SIZE];
+#endif
+  uint32_t curr_time_ms;
   /* input state */
   mu_Vec2 mouse_pos;
   mu_Vec2 last_mouse_pos;

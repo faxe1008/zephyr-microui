@@ -1,0 +1,25 @@
+# Copyright (c) 2025 Fabian Blatz <fabianblatz@gmail.com>
+# SPDX-License-Identifier: Apache-2.0
+
+config MICROUI_ANIMATIONS
+    bool "Enable MicroUI animation support"
+    default n
+    help
+      Enable the immediate-mode animation subsystem for MicroUI. This provides
+      a lightweight framework for animating values with various easing functions.
+      Animation state is cached internally using IDs, following the immediate-mode
+      paradigm. Unused animations are automatically garbage collected.
+
+if MICROUI_ANIMATIONS
+
+config MICROUI_ANIMATION_POOL_SIZE
+    int "Animation state pool size"
+    default 32
+    range 4 128
+    help
+      Set the maximum number of animation states that can be cached.
+      Each animation slot uses approximately 32 bytes of RAM.
+      Animations not accessed for a number of frames are automatically
+      evicted to make room for new ones.
+
+endif # MICROUI_ANIMATIONS
