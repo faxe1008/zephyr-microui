@@ -32,6 +32,12 @@ When enabled, provides additional drawing primitives:
 - `mu_draw_triangle()` - Filled triangles
 - `mu_draw_image()` - Image rendering support
 
+### Animation Support
+Built-in animation framework for UI elements:
+- Smooth transitions and animations for UI state changes
+- Configurable animation timing and easing functions
+- Integration with the event loop for frame-based updates
+
 ### Flex Layout System
 Proportional/weighted layout system using `MU_FLEX()` macro:
 ```c
