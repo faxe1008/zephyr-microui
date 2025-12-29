@@ -14,6 +14,10 @@
 #include <microui/image.h>
 #include <zephyr/kernel.h>
 
+#ifdef CONFIG_MICROUI_ANIMATIONS
+#include <microui/animation.h>
+#endif
+
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
@@ -32,6 +36,18 @@ MU_IMAGE_DECLARE(square_mono10);
 static char logbuf[64000];
 static int logbuf_updated = 0;
 static float bg[3] = {90, 95, 100};
+
+/*
+ * Animation demo state
+ */
+#ifdef CONFIG_MICROUI_ANIMATIONS
+
+/* Animation demo toggle states */
+static bool anim_bounce_running = false;
+static int anim_bounce_easing = MU_EASE_OUT_BOUNCE;
+static float anim_bounce_duration = 1500.0f;
+
+#endif /* CONFIG_MICROUI_ANIMATIONS */
 
 static void write_log(const char *text)
 {
@@ -321,6 +337,175 @@ static void test_window(mu_Context *ctx)
 			mu_button(ctx, "Flex 2");
 		}
 #endif /* CONFIG_MICROUI_DRAW_EXTENSIONS */
+
+#ifdef CONFIG_MICROUI_ANIMATIONS
+		if (mu_header_ex(ctx, "Animations", MU_OPT_EXPANDED)) {
+			char buf[64];
+
+			/* Section 1: Speed-based Tween Animation */
+			mu_layout_row(ctx, 1, (int[]){-1}, 0);
+			mu_label(ctx, "Speed-based Animation (50 units/sec):");
+
+			/* Animate slider value using speed-to-time */
+			static float target_value = 50.0f;
+			static float start_value = 50.0f;
+			mu_AnimId progress_id = mu_anim_id("progress");
+			uint32_t duration = mu_anim_speed_to_time(50.0f, start_value, target_value);
+			float current = mu_anim(ctx, progress_id, start_value, target_value,
+						duration, MU_EASE_OUT, false);
+
+			/* Draw animated progress bar */
+			mu_layout_row(ctx, 1, (int[]){-1}, 20);
+			mu_Rect progress_rect = mu_layout_next(ctx);
+			mu_draw_rect(ctx, progress_rect, mu_color(60, 60, 60, 255));
+			int fill_width = (int)(progress_rect.w * current / 100.0f);
+			mu_draw_rect(ctx,
+				     mu_rect(progress_rect.x, progress_rect.y, fill_width,
+					     progress_rect.h),
+				     mu_color(80, 180, 80, 255));
+			sprintf(buf, "%.0f%%", (double)current);
+			mu_draw_control_text(ctx, buf, progress_rect, MU_COLOR_TEXT,
+					     MU_OPT_ALIGNCENTER);
+
+			/* Control buttons */
+			mu_layout_row(ctx, 3, (int[]){MU_FLEX(1), MU_FLEX(1), MU_FLEX(1)}, 0);
+			if (mu_button(ctx, "0%")) {
+				start_value = current;
+				target_value = 0.0f;
+			}
+			if (mu_button(ctx, "50%")) {
+				start_value = current;
+				target_value = 50.0f;
+			}
+			if (mu_button(ctx, "100%")) {
+				start_value = current;
+				target_value = 100.0f;
+			}
+
+			mu_layout_row(ctx, 1, (int[]){-1}, 0);
+			mu_label(ctx, "Animation - Easing Types:");
+
+			mu_layout_row(ctx, 2, (int[]){80, -1}, 0);
+			mu_label(ctx, "Duration:");
+			mu_slider_ex(ctx, &anim_bounce_duration, 500.0f, 10000.0f, 100.0f,
+				     "%.0f ms", MU_OPT_ALIGNCENTER);
+
+			mu_layout_row(ctx, 1, (int[]){-1}, 40);
+			mu_Rect bounce_area = mu_layout_next(ctx);
+			mu_draw_rect(ctx, bounce_area, mu_color(40, 40, 40, 255));
+
+			mu_AnimId bounce_id = mu_anim_id("bounce_ball");
+			float bounce_x = 0.0f;
+			if (anim_bounce_running) {
+				bounce_x =
+					mu_anim(ctx, bounce_id, 0.0f, (float)(bounce_area.w - 25),
+						(uint32_t)anim_bounce_duration,
+						(enum mu_easing)anim_bounce_easing, false);
+				/* Auto-reset when done */
+				if (mu_anim_done(ctx, bounce_id)) {
+					anim_bounce_running = false;
+				}
+			}
+
+			int ball_x = bounce_area.x + 10 + (int)bounce_x;
+			int ball_y = bounce_area.y + bounce_area.h / 2;
+			int ball_radius = 12;
+#ifdef CONFIG_MICROUI_DRAW_EXTENSIONS
+			mu_draw_circle(ctx, mu_vec2(ball_x, ball_y), ball_radius,
+				       mu_color(255, 100, 100, 255));
+#else
+			mu_draw_rect(ctx,
+				     mu_rect(ball_x - ball_radius, ball_y - ball_radius,
+					     ball_radius * 2, ball_radius * 2),
+				     mu_color(255, 100, 100, 255));
+#endif
+
+			mu_layout_row(ctx, 4,
+				      (int[]){MU_FLEX(1), MU_FLEX(1), MU_FLEX(1), MU_FLEX(1)}, 0);
+			if (mu_button(ctx, "Linear")) {
+				mu_anim_reset(ctx, bounce_id);
+				anim_bounce_easing = MU_EASE_LINEAR;
+				anim_bounce_running = true;
+			}
+			if (mu_button(ctx, "In")) {
+				mu_anim_reset(ctx, bounce_id);
+				anim_bounce_easing = MU_EASE_IN;
+				anim_bounce_running = true;
+			}
+			if (mu_button(ctx, "Out")) {
+				mu_anim_reset(ctx, bounce_id);
+				anim_bounce_easing = MU_EASE_OUT;
+				anim_bounce_running = true;
+			}
+			if (mu_button(ctx, "InOut")) {
+				mu_anim_reset(ctx, bounce_id);
+				anim_bounce_easing = MU_EASE_IN_OUT;
+				anim_bounce_running = true;
+			}
+
+			mu_layout_row(ctx, 3, (int[]){MU_FLEX(1), MU_FLEX(1), MU_FLEX(1)}, 0);
+			if (mu_button(ctx, "InQuad")) {
+				mu_anim_reset(ctx, bounce_id);
+				anim_bounce_easing = MU_EASE_IN_QUAD;
+				anim_bounce_running = true;
+			}
+			if (mu_button(ctx, "OutQuad")) {
+				mu_anim_reset(ctx, bounce_id);
+				anim_bounce_easing = MU_EASE_OUT_QUAD;
+				anim_bounce_running = true;
+			}
+			if (mu_button(ctx, "InOutQuad")) {
+				mu_anim_reset(ctx, bounce_id);
+				anim_bounce_easing = MU_EASE_IN_OUT_QUAD;
+				anim_bounce_running = true;
+			}
+
+			mu_layout_row(ctx, 3, (int[]){MU_FLEX(1), MU_FLEX(1), MU_FLEX(1)}, 0);
+			if (mu_button(ctx, "InCubic")) {
+				mu_anim_reset(ctx, bounce_id);
+				anim_bounce_easing = MU_EASE_IN_CUBIC;
+				anim_bounce_running = true;
+			}
+			if (mu_button(ctx, "OutCubic")) {
+				mu_anim_reset(ctx, bounce_id);
+				anim_bounce_easing = MU_EASE_OUT_CUBIC;
+				anim_bounce_running = true;
+			}
+			if (mu_button(ctx, "InOutCubic")) {
+				mu_anim_reset(ctx, bounce_id);
+				anim_bounce_easing = MU_EASE_IN_OUT_CUBIC;
+				anim_bounce_running = true;
+			}
+
+			mu_layout_row(ctx, 4,
+				      (int[]){MU_FLEX(1), MU_FLEX(1), MU_FLEX(1), MU_FLEX(1)}, 0);
+			if (mu_button(ctx, "Elastic")) {
+				mu_anim_reset(ctx, bounce_id);
+				anim_bounce_easing = MU_EASE_OUT_ELASTIC;
+				anim_bounce_running = true;
+			}
+			if (mu_button(ctx, "Bounce")) {
+				mu_anim_reset(ctx, bounce_id);
+				anim_bounce_easing = MU_EASE_OUT_BOUNCE;
+				anim_bounce_running = true;
+			}
+			if (mu_button(ctx, "InBack")) {
+				mu_anim_reset(ctx, bounce_id);
+				anim_bounce_easing = MU_EASE_IN_BACK;
+				anim_bounce_running = true;
+			}
+			if (mu_button(ctx, "OutBack")) {
+				mu_anim_reset(ctx, bounce_id);
+				anim_bounce_easing = MU_EASE_OUT_BACK;
+				anim_bounce_running = true;
+			}
+
+			mu_layout_row(ctx, 1, (int[]){-1}, 0);
+			sprintf(buf, "Cached animations: %d", mu_anim_count(ctx));
+			mu_label(ctx, buf);
+		}
+#endif /* CONFIG_MICROUI_ANIMATIONS */
+
 		mu_end_window(ctx);
 	}
 }

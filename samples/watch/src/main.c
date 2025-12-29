@@ -10,6 +10,7 @@
 #include <math.h>
 #include <microui/zmu.h>
 #include <microui/microui.h>
+#include <microui/animation.h>
 #include <microui/font.h>
 #include <microui/image.h>
 #include <zephyr/drivers/pwm.h>
@@ -66,57 +67,58 @@ MU_IMAGE_DECLARE(music)
 MU_IMAGE_DECLARE(back)
 
 struct Song {
-    const char* title;
-    const char* artist;
-    mu_Image album_art;
-    mu_Color visualizer_color;
+	const char *title;
+	const char *artist;
+	mu_Image album_art;
+	mu_Color visualizer_color;
 };
 
 struct MusicPlayerState {
-    struct Song* playlist;
-    uint32_t playlist_size;
-    uint8_t current_index;
-    bool is_playing;
+	struct Song *playlist;
+	uint32_t playlist_size;
+	uint8_t current_index;
+	bool is_playing;
 };
 
 static struct Song playlist[] = {
-    { .title = "Midnight Overdrive", .artist = "Neon Drift", .album_art = (mu_Image)&album0,
-      .visualizer_color = { 0xFF, 0x00, 0x6E, 0xFF } },  /* Hot pink / neon magenta */
-    { .title = "Polar Pulse", .artist = "Aurora Circuit", .album_art = (mu_Image)&album1,
-      .visualizer_color = { 0x00, 0xD4, 0xFF, 0xFF } },  /* Electric cyan / aurora blue */
-    { .title = "Copper Skies", .artist = "Velvet Engine", .album_art = (mu_Image)&album2,
-      .visualizer_color = { 0xFF, 0x8C, 0x42, 0xFF } },  /* Copper orange */
-    { .title = "Gravity Garden", .artist = "Solar Bloom", .album_art = (mu_Image)&album3,
-      .visualizer_color = { 0x7B, 0xFF, 0x00, 0xFF } },  /* Bright lime green */
+	{.title = "Midnight Overdrive",
+	 .artist = "Neon Drift",
+	 .album_art = (mu_Image)&album0,
+	 .visualizer_color = {0xFF, 0x00, 0x6E, 0xFF}}, /* Hot pink / neon magenta */
+	{.title = "Polar Pulse",
+	 .artist = "Aurora Circuit",
+	 .album_art = (mu_Image)&album1,
+	 .visualizer_color = {0x00, 0xD4, 0xFF, 0xFF}}, /* Electric cyan / aurora blue */
+	{.title = "Copper Skies",
+	 .artist = "Velvet Engine",
+	 .album_art = (mu_Image)&album2,
+	 .visualizer_color = {0xFF, 0x8C, 0x42, 0xFF}}, /* Copper orange */
+	{.title = "Gravity Garden",
+	 .artist = "Solar Bloom",
+	 .album_art = (mu_Image)&album3,
+	 .visualizer_color = {0x7B, 0xFF, 0x00, 0xFF}}, /* Bright lime green */
 };
 
 static struct MusicPlayerState music_player = {
-    .playlist = playlist,
-    .playlist_size = ARRAY_SIZE(playlist),
-    .current_index = 0,
-    .is_playing = false,
+	.playlist = playlist,
+	.playlist_size = ARRAY_SIZE(playlist),
+	.current_index = 0,
+	.is_playing = false,
 };
 
 /* Pre-computed audio wave pattern for visualizer (64 samples, values 0.0 - 1.0) */
 static const float audio_wave_pattern[] = {
-    0.42f, 0.44f, 0.47f, 0.51f, 0.56f, 0.61f, 0.66f, 0.71f,
-    0.75f, 0.79f, 0.83f, 0.86f, 0.89f, 0.91f, 0.92f, 0.93f,
-    0.92f, 0.91f, 0.89f, 0.87f, 0.84f, 0.80f, 0.76f, 0.72f,
-    0.68f, 0.64f, 0.60f, 0.57f, 0.54f, 0.52f, 0.50f, 0.49f,
-    0.48f, 0.49f, 0.51f, 0.54f, 0.58f, 0.62f, 0.67f, 0.72f,
-    0.77f, 0.81f, 0.85f, 0.88f, 0.90f, 0.92f, 0.93f, 0.93f,
-    0.92f, 0.90f, 0.88f, 0.85f, 0.82f, 0.78f, 0.74f, 0.70f,
-    0.66f, 0.62f, 0.59f, 0.56f, 0.53f, 0.51f, 0.49f, 0.48f,
+	0.42f, 0.44f, 0.47f, 0.51f, 0.56f, 0.61f, 0.66f, 0.71f, 0.75f, 0.79f, 0.83f, 0.86f, 0.89f,
+	0.91f, 0.92f, 0.93f, 0.92f, 0.91f, 0.89f, 0.87f, 0.84f, 0.80f, 0.76f, 0.72f, 0.68f, 0.64f,
+	0.60f, 0.57f, 0.54f, 0.52f, 0.50f, 0.49f, 0.48f, 0.49f, 0.51f, 0.54f, 0.58f, 0.62f, 0.67f,
+	0.72f, 0.77f, 0.81f, 0.85f, 0.88f, 0.90f, 0.92f, 0.93f, 0.93f, 0.92f, 0.90f, 0.88f, 0.85f,
+	0.82f, 0.78f, 0.74f, 0.70f, 0.66f, 0.62f, 0.59f, 0.56f, 0.53f, 0.51f, 0.49f, 0.48f,
 
-    0.47f, 0.49f, 0.52f, 0.56f, 0.60f, 0.65f, 0.70f, 0.74f,
-    0.78f, 0.82f, 0.85f, 0.88f, 0.90f, 0.91f, 0.92f, 0.92f,
-    0.91f, 0.89f, 0.86f, 0.83f, 0.80f, 0.76f, 0.72f, 0.68f,
-    0.64f, 0.60f, 0.57f, 0.54f, 0.52f, 0.50f, 0.49f, 0.48f,
-    0.47f, 0.48f, 0.50f, 0.53f, 0.57f, 0.61f, 0.66f, 0.71f,
-    0.76f, 0.80f, 0.84f, 0.87f, 0.89f, 0.91f, 0.92f, 0.92f,
-    0.91f, 0.89f, 0.87f, 0.84f, 0.81f, 0.77f, 0.73f, 0.69f,
-    0.65f, 0.61f, 0.58f, 0.55f, 0.52f, 0.50f, 0.48f, 0.46f
-};
+	0.47f, 0.49f, 0.52f, 0.56f, 0.60f, 0.65f, 0.70f, 0.74f, 0.78f, 0.82f, 0.85f, 0.88f, 0.90f,
+	0.91f, 0.92f, 0.92f, 0.91f, 0.89f, 0.86f, 0.83f, 0.80f, 0.76f, 0.72f, 0.68f, 0.64f, 0.60f,
+	0.57f, 0.54f, 0.52f, 0.50f, 0.49f, 0.48f, 0.47f, 0.48f, 0.50f, 0.53f, 0.57f, 0.61f, 0.66f,
+	0.71f, 0.76f, 0.80f, 0.84f, 0.87f, 0.89f, 0.91f, 0.92f, 0.92f, 0.91f, 0.89f, 0.87f, 0.84f,
+	0.81f, 0.77f, 0.73f, 0.69f, 0.65f, 0.61f, 0.58f, 0.55f, 0.52f, 0.50f, 0.48f, 0.46f};
 #define AUDIO_WAVE_PATTERN_SIZE ARRAY_SIZE(audio_wave_pattern)
 
 /* Symbol drawing types for circular buttons */
@@ -145,7 +147,7 @@ static void draw_pause_symbol(mu_Context *ctx, mu_Rect r, int size, mu_Color col
 	int bar_w = size / 4;
 	int bar_h = size;
 	int gap = size / 4;
-	
+
 	mu_draw_rect(ctx, mu_rect(cx - gap - bar_w, cy - bar_h / 2, bar_w, bar_h), color);
 	mu_draw_rect(ctx, mu_rect(cx + gap, cy - bar_h / 2, bar_w, bar_h), color);
 }
@@ -156,13 +158,13 @@ static void draw_next_symbol(mu_Context *ctx, mu_Rect r, int size, mu_Color colo
 	int cy = r.y + r.h / 2;
 	int half = size / 2;
 	int bar_w = size / 6;
-	
+
 	int tri_offset = -bar_w;
 	mu_Vec2 p0 = mu_vec2(cx - half / 2 + tri_offset, cy - half);
 	mu_Vec2 p1 = mu_vec2(cx - half / 2 + tri_offset, cy + half);
 	mu_Vec2 p2 = mu_vec2(cx + half / 2 + tri_offset, cy);
 	mu_draw_triangle(ctx, p0, p1, p2, color);
-	
+
 	mu_draw_rect(ctx, mu_rect(cx + half / 2 + bar_w / 2, cy - half, bar_w, size), color);
 }
 
@@ -172,9 +174,10 @@ static void draw_prev_symbol(mu_Context *ctx, mu_Rect r, int size, mu_Color colo
 	int cy = r.y + r.h / 2;
 	int half = size / 2;
 	int bar_w = size / 6;
-	
-	mu_draw_rect(ctx, mu_rect(cx - half / 2 - bar_w - bar_w / 2, cy - half, bar_w, size), color);
-	
+
+	mu_draw_rect(ctx, mu_rect(cx - half / 2 - bar_w - bar_w / 2, cy - half, bar_w, size),
+		     color);
+
 	int tri_offset = bar_w;
 	mu_Vec2 p0 = mu_vec2(cx + half / 2 + tri_offset, cy - half);
 	mu_Vec2 p1 = mu_vec2(cx + half / 2 + tri_offset, cy + half);
@@ -259,7 +262,7 @@ static int mu_icon_button(mu_Context *ctx, const void *id_data, int id_size, mu_
 	return res;
 }
 
-static void draw_battery_icon(mu_Context *ctx, int x, int y, int percent)
+static void draw_battery_icon(mu_Context *ctx, int x, int y, uint8_t percent)
 {
 	int batt_w = 24;
 	int batt_h = 12;
@@ -284,7 +287,8 @@ static void draw_battery_icon(mu_Context *ctx, int x, int y, int percent)
 	int fill_max_w = batt_w - border * 2;
 	int fill_w = (fill_max_w * percent) / 100;
 	if (fill_w > 0) {
-		mu_draw_rect(ctx, mu_rect(x + border, y + border, fill_w, batt_h - border * 2), fill_color);
+		mu_draw_rect(ctx, mu_rect(x + border, y + border, fill_w, batt_h - border * 2),
+			     fill_color);
 	}
 }
 
@@ -294,17 +298,21 @@ static void draw_watchface(mu_Context *ctx)
 		return;
 	}
 
-	if (mu_begin_window_ex(ctx, "Watchface",
-			       mu_rect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT),
-			       MU_OPT_NOTITLE | MU_OPT_NORESIZE | MU_OPT_NOCLOSE | MU_OPT_NOSCROLL)) {
+	if (mu_begin_window_ex(ctx, "Watchface", mu_rect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT),
+			       MU_OPT_NOTITLE | MU_OPT_NORESIZE | MU_OPT_NOCLOSE |
+				       MU_OPT_NOSCROLL)) {
 
 		mu_Container *win = mu_get_current_container(ctx);
 		int center_x = win->body.x + win->body.w / 2;
 		int center_y = win->body.y + win->body.h / 2;
 		int radius = (win->body.w < win->body.h ? win->body.w : win->body.h) / 2 - 5;
 
+		/* Animate the step counter smoothly */
+		current_steps = mu_anim(ctx, mu_anim_id("steps"), 0, (float)DAILY_STEP_GOAL, 5000,
+					MU_EASE_IN_OUT, true);
+
 		float step_progress = (float)current_steps / (float)DAILY_STEP_GOAL;
-		if (step_progress > 1.0f) {
+		if (step_progress >= 1.0f) {
 			step_progress = 1.0f;
 		}
 
@@ -321,8 +329,8 @@ static void draw_watchface(mu_Context *ctx)
 		}
 
 		if (current_steps > 0) {
-			mu_draw_arc(ctx, mu_vec2(center_x, center_y), radius, 6,
-				    start_angle, end_angle, arc_color);
+			mu_draw_arc(ctx, mu_vec2(center_x, center_y), radius, 6, start_angle,
+				    end_angle, arc_color);
 		}
 
 		uint32_t uptime_sec = k_uptime_get_32() / 1000;
@@ -340,6 +348,9 @@ static void draw_watchface(mu_Context *ctx)
 
 		int batt_x = center_x + 50;
 		int batt_y = center_y - text_h / 2 - 50;
+		/* Animate battery */
+		battery_percent = (uint8_t)mu_anim(ctx, mu_anim_id("battery"), 100, 10, 50000,
+						   MU_EASE_LINEAR, true);
 		draw_battery_icon(ctx, batt_x, batt_y, battery_percent);
 
 		mu_Vec2 text_pos = mu_vec2(center_x - text_w / 2, center_y - text_h / 2);
@@ -361,39 +372,25 @@ static void draw_watchface(mu_Context *ctx)
 			current_screen = SCREEN_MUSIC_PLAYER;
 		}
 
-		mu_layout_set_next(ctx, mu_rect(btn_row_x + btn_size + btn_spacing, btn_row_y, btn_size, btn_size), 0);
+		mu_layout_set_next(
+			ctx,
+			mu_rect(btn_row_x + btn_size + btn_spacing, btn_row_y, btn_size, btn_size),
+			0);
 		mu_layout_next(ctx);
 
 		mu_end_window(ctx);
 	}
-
-	static uint32_t last_battery_update = 0;
-	uint32_t now = k_uptime_get_32();
-	if (now - last_battery_update > 10000) {
-		last_battery_update = now;
-		if (battery_percent > 0) {
-			battery_percent--;
-		}
-	}
-
-	static uint32_t last_step_update = 0;
-	uint32_t now_steps = k_uptime_get_32();
-	if (now_steps - last_step_update > 5000) {
-		last_step_update = now_steps;
-		current_steps += 150;
-		current_steps %= DAILY_STEP_GOAL;
-	}
 }
 
-void draw_music_player(mu_Context* ctx)
+void draw_music_player(mu_Context *ctx)
 {
 	if (current_screen != SCREEN_MUSIC_PLAYER) {
 		return;
 	}
 
-	if (mu_begin_window_ex(ctx, "MusicPlayer",
-			       mu_rect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT),
-			       MU_OPT_NOTITLE | MU_OPT_NORESIZE | MU_OPT_NOCLOSE | MU_OPT_NOSCROLL)) {
+	if (mu_begin_window_ex(ctx, "MusicPlayer", mu_rect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT),
+			       MU_OPT_NOTITLE | MU_OPT_NORESIZE | MU_OPT_NOCLOSE |
+				       MU_OPT_NOSCROLL)) {
 
 		struct Song *current_song = &music_player.playlist[music_player.current_index];
 		mu_Container *win = mu_get_current_container(ctx);
@@ -406,7 +403,8 @@ void draw_music_player(mu_Context* ctx)
 		int back_btn_x = center_x - radius / 2 - 12;
 		int back_btn_y = 25;
 		mu_layout_row(ctx, 1, (int[]){back_btn_size}, back_btn_size);
-		mu_layout_set_next(ctx, mu_rect(back_btn_x, back_btn_y, back_btn_size, back_btn_size), 0);
+		mu_layout_set_next(
+			ctx, mu_rect(back_btn_x, back_btn_y, back_btn_size, back_btn_size), 0);
 		if (mu_icon_button(ctx, "back", 4, (mu_Image)&back)) {
 			current_screen = SCREEN_WATCHFACE;
 		}
@@ -418,8 +416,8 @@ void draw_music_player(mu_Context* ctx)
 
 		int artist_height = ctx->text_height(ctx->style->font) + padding;
 		mu_layout_row(ctx, 1, (int[]){-1}, artist_height);
-		mu_draw_control_text(ctx, current_song->artist, mu_layout_next(ctx),
-				     MU_COLOR_TEXT, MU_OPT_ALIGNCENTER);
+		mu_draw_control_text(ctx, current_song->artist, mu_layout_next(ctx), MU_COLOR_TEXT,
+				     MU_OPT_ALIGNCENTER);
 
 		int album_w = 0, album_h = 0;
 		mu_get_img_dimensions(current_song->album_art, &album_w, &album_h);
@@ -432,7 +430,8 @@ void draw_music_player(mu_Context* ctx)
 		int album_left_padding = content_width / 6;
 		int visualizer_width = content_width - album_left_padding - album_w - padding;
 
-		mu_layout_row(ctx, 3, (int[]){album_left_padding, album_w, visualizer_width}, album_h);
+		mu_layout_row(ctx, 3, (int[]){album_left_padding, album_w, visualizer_width},
+			      album_h);
 
 		mu_layout_next(ctx);
 
@@ -447,7 +446,8 @@ void draw_music_player(mu_Context* ctx)
 		int wave_offset = (time_ms / 50) % AUDIO_WAVE_PATTERN_SIZE;
 
 		for (int i = 0; i < num_bars; i++) {
-			int bar_y = viz_bottom_y - (num_bars - i) * bar_height - (num_bars - 1 - i) * bar_gap;
+			int bar_y = viz_bottom_y - (num_bars - i) * bar_height -
+				    (num_bars - 1 - i) * bar_gap;
 
 			int bar_width;
 			if (music_player.is_playing) {
@@ -458,22 +458,24 @@ void draw_music_player(mu_Context* ctx)
 				bar_width = viz_rect.w * 15 / 100;
 			}
 
-			mu_draw_rect(ctx, mu_rect(viz_rect.x, bar_y, bar_width, bar_height), current_song->visualizer_color);
+			mu_draw_rect(ctx, mu_rect(viz_rect.x, bar_y, bar_width, bar_height),
+				     current_song->visualizer_color);
 		}
 
 		int title_height = ctx->text_height(ctx->style->font) + padding * 2;
 		mu_layout_row(ctx, 1, (int[]){-1}, title_height);
-		mu_draw_control_text(ctx, current_song->title, mu_layout_next(ctx),
-				     MU_COLOR_TEXT, MU_OPT_ALIGNCENTER);
+		mu_draw_control_text(ctx, current_song->title, mu_layout_next(ctx), MU_COLOR_TEXT,
+				     MU_OPT_ALIGNCENTER);
 
 		int button_size = 30;
 		int layout_spacing = ctx->style->spacing;
-		int button_radius = (button_size - layout_spacing) / 2;
+		int button_radius = (button_size) / 2;
 		int button_gap = 15;
 		int total_buttons_width = 3 * button_size + 2 * button_gap + 6 * layout_spacing;
 		int side_padding = (content_width - total_buttons_width) / 2;
 		mu_layout_row(ctx, 7,
-			      (int[]){side_padding, button_size, button_gap, button_size, button_gap, button_size, side_padding},
+			      (int[]){side_padding, button_size, button_gap, button_size,
+				      button_gap, button_size, side_padding},
 			      button_size);
 
 		mu_layout_next(ctx);
@@ -488,8 +490,8 @@ void draw_music_player(mu_Context* ctx)
 
 		mu_layout_next(ctx);
 
-		enum button_symbol play_pause_symbol = music_player.is_playing ?
-						       SYMBOL_PAUSE : SYMBOL_PLAY;
+		enum button_symbol play_pause_symbol =
+			music_player.is_playing ? SYMBOL_PAUSE : SYMBOL_PLAY;
 		if (mu_circular_button(ctx, "play_pause", 10, play_pause_symbol, button_radius)) {
 			music_player.is_playing = !music_player.is_playing;
 		}
@@ -520,7 +522,7 @@ int main(int argc, char **argv)
 #if DT_HAS_ALIAS(backlight_pwm)
 	struct pwm_dt_spec backlight = PWM_DT_SPEC_GET_OR(DT_ALIAS(backlight_pwm), {0});
 
-	if(!pwm_is_ready_dt(&backlight)) {
+	if (!pwm_is_ready_dt(&backlight)) {
 		return 0;
 	}
 
@@ -530,9 +532,9 @@ int main(int argc, char **argv)
 	mu_setup(process_frame);
 
 	mu_Context *ctx = mu_get_context();
-    mu_set_font(ctx, &montserrat_14);
+	mu_set_font(ctx, &montserrat_14);
 
-    ctx->style->colors[MU_COLOR_WINDOWBG] = WINDOW_BG_COLOR;
+	ctx->style->colors[MU_COLOR_WINDOWBG] = WINDOW_BG_COLOR;
 
 #ifdef CONFIG_MICROUI_EVENT_LOOP
 	mu_event_loop_start();
