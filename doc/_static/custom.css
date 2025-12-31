@@ -1,0 +1,39 @@
+/* Custom CSS for MicroUI documentation */
+
+/* Ensure code blocks have good contrast */
+.highlight {
+    border-radius: 4px;
+}
+
+/* API documentation styling */
+.sig-name {
+    font-weight: 600;
+}
+
+/* Better spacing for parameter lists */
+.field-list {
+    margin-top: 1em;
+}
+
+/* Improve table appearance */
+table.docutils {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+table.docutils th,
+table.docutils td {
+    padding: 0.5em;
+}
+
+/* Admonition styling */
+.admonition {
+    border-radius: 4px;
+    margin: 1em 0;
+}
+
+/* Version selector styling for GitHub Pages */
+.version-info {
+    font-size: 0.9em;
+    color: var(--color-foreground-secondary);
+}

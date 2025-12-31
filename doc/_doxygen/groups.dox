@@ -1,17 +1,68 @@
 /**
- * @defgroup drivers Custom driver classes
+ * @defgroup microui_core MicroUI Core
  * @{
  *
- * @brief Custom driver classes
+ * @brief Core MicroUI types and functions
+ *
+ * The core API provides immediate-mode UI primitives including windows, panels,
+ * buttons, labels, text inputs, sliders, and layout management.
  *
  * @}
  */
 
 /**
- * @defgroup lib Custom libraries
+ * @defgroup microui_zephyr Zephyr Integration
  * @{
  *
- * @brief Custom libraries
+ * @brief Zephyr RTOS integration layer
+ *
+ * Functions for integrating MicroUI with Zephyr's display subsystem, input
+ * handling, and event loop management.
+ *
+ * @}
+ */
+
+/**
+ * @defgroup microui_draw Drawing Extensions
+ * @{
+ *
+ * @brief Extended drawing primitives
+ *
+ * Additional drawing functions for circles, arcs, lines, triangles, and images.
+ * Enable with CONFIG_MICROUI_DRAW_EXTENSIONS.
+ *
+ * @}
+ */
+
+/**
+ * @defgroup microui_animation Animation
+ * @{
+ *
+ * @brief Animation framework
+ *
+ * Built-in animation support for smooth UI transitions and state changes.
+ *
+ * @}
+ */
+
+/**
+ * @defgroup microui_font Font Handling
+ * @{
+ *
+ * @brief Font loading and text rendering
+ *
+ * APIs for working with fonts and rendering text.
+ *
+ * @}
+ */
+
+/**
+ * @defgroup microui_image Image Handling
+ * @{
+ *
+ * @brief Image loading and rendering
+ *
+ * APIs for loading and displaying images.
  *
  * @}
  */

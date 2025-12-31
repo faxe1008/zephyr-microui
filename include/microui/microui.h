@@ -20,7 +20,7 @@
 #define MU_LAYOUTSTACK_SIZE     CONFIG_MICROUI_LAYOUTSTACK_SIZE
 #define MU_CONTAINERPOOL_SIZE   CONFIG_MICROUI_CONTAINERPOOL_SIZE
 #define MU_TREENODEPOOL_SIZE    CONFIG_MICROUI_TREENODEPOOL_SIZE
-#ifdef CONFIG_MICROUI_ANIMATIONS
+#if defined(CONFIG_MICROUI_ANIMATIONS) || defined(__DOXYGEN__)
 #define MU_ANIM_POOL_SIZE       CONFIG_MICROUI_ANIMATION_POOL_SIZE
 #endif
 #define MU_MAX_WIDTHS           CONFIG_MICROUI_MAX_WIDTHS
@@ -52,7 +52,7 @@ enum {
   MU_COMMAND_RECT,
   MU_COMMAND_TEXT,
   MU_COMMAND_ICON,
-#ifdef CONFIG_MICROUI_DRAW_EXTENSIONS
+#if defined(CONFIG_MICROUI_DRAW_EXTENSIONS) || defined(__DOXYGEN__)
   MU_COMMAND_ARC,
   MU_COMMAND_CIRCLE,
   MU_COMMAND_LINE,
@@ -143,7 +143,7 @@ typedef struct { mu_BaseCommand base; mu_Rect rect; } mu_ClipCommand;
 typedef struct { mu_BaseCommand base; mu_Rect rect; mu_Color color; } mu_RectCommand;
 typedef struct { mu_BaseCommand base; mu_Font font; mu_Vec2 pos; mu_Color color; char str[1]; } mu_TextCommand;
 typedef struct { mu_BaseCommand base; mu_Rect rect; int id; mu_Color color; } mu_IconCommand;
-#ifdef CONFIG_MICROUI_DRAW_EXTENSIONS
+#if defined(CONFIG_MICROUI_DRAW_EXTENSIONS) || defined(__DOXYGEN__)
 typedef struct { mu_BaseCommand base; mu_Vec2 center; int radius; mu_Color color; } mu_CircleCommand;
 typedef struct { mu_BaseCommand base; mu_Vec2 center; int radius; int thickness; mu_Real start_angle; mu_Real end_angle; mu_Color color; } mu_ArcCommand;
 typedef struct { mu_BaseCommand base; mu_Vec2 p0, p1; int thickness; mu_Color color; } mu_LineCommand;
@@ -159,7 +159,7 @@ typedef union {
   mu_RectCommand rect;
   mu_TextCommand text;
   mu_IconCommand icon;
-#ifdef CONFIG_MICROUI_DRAW_EXTENSIONS
+#if defined(CONFIG_MICROUI_DRAW_EXTENSIONS) || defined(__DOXYGEN__)
   mu_ArcCommand arc;
   mu_CircleCommand circle;
   mu_LineCommand line;
@@ -204,7 +204,7 @@ typedef struct {
   mu_Color colors[MU_COLOR_MAX];
 } mu_Style;
 
-#ifdef CONFIG_MICROUI_ANIMATIONS
+#if defined(CONFIG_MICROUI_ANIMATIONS) || defined(__DOXYGEN__)
 /**
  * @brief Easing function pointer type
  */
@@ -260,7 +260,7 @@ struct mu_Context {
   mu_PoolItem container_pool[MU_CONTAINERPOOL_SIZE];
   mu_Container containers[MU_CONTAINERPOOL_SIZE];
   mu_PoolItem treenode_pool[MU_TREENODEPOOL_SIZE];
-#ifdef CONFIG_MICROUI_ANIMATIONS
+#if defined(CONFIG_MICROUI_ANIMATIONS) || defined(__DOXYGEN__)
   mu_PoolItem anim_pool[MU_ANIM_POOL_SIZE];
   mu_AnimState anim_states[MU_ANIM_POOL_SIZE];
 #endif
@@ -316,7 +316,7 @@ void mu_draw_rect(mu_Context *ctx, mu_Rect rect, mu_Color color);
 void mu_draw_box(mu_Context *ctx, mu_Rect rect, mu_Color color);
 void mu_draw_text(mu_Context *ctx, mu_Font font, const char *str, int len, mu_Vec2 pos, mu_Color color);
 void mu_draw_icon(mu_Context *ctx, int id, mu_Rect rect, mu_Color color);
-#ifdef CONFIG_MICROUI_DRAW_EXTENSIONS
+#if defined(CONFIG_MICROUI_DRAW_EXTENSIONS) || defined(__DOXYGEN__)
 void mu_draw_arc(mu_Context *ctx, mu_Vec2 center, int radius, int thickness, mu_Real start_angle, mu_Real end_angle, mu_Color color);
 void mu_draw_circle(mu_Context *ctx, mu_Vec2 center, int radius, mu_Color color);
 void mu_draw_line(mu_Context *ctx, mu_Vec2 p0, mu_Vec2 p1, int thickness, mu_Color color);

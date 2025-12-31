@@ -1,1 +1,19 @@
-Sphinx
+# Documentation requirements for zephyr-microui
+# Install with: pip install -r doc/doc-requirements.txt
+
+# Sphinx core
+Sphinx>=7.0.0
+
+# RTD theme
+sphinx-rtd-theme>=2.0.0
+
+# Doxygen integration
+breathe>=4.35.0
+
+# Sphinx extensions
+sphinx-copybutton>=0.5.0
+sphinx-tabs>=3.4.0
+sphinxcontrib-jquery>=4.1
+
+# Kconfig documentation (optional, for kconfig.rst)
+kconfiglib>=14.0.0
