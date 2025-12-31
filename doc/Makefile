@@ -1,20 +1,56 @@
-# Minimal makefile for Sphinx documentation
+# Makefile for MicroUI documentation
 #
+# This Makefile builds both Doxygen and Sphinx documentation.
+# Run from the doc/ directory.
 
-# You can set these variables from the command line, and also
-# from the environment for the first two.
+# Configuration
 SPHINXOPTS    ?=
 SPHINXBUILD   ?= sphinx-build
+DOXYGEN       ?= doxygen
 SOURCEDIR     = .
-BUILDDIR      = _build_sphinx
+BUILDDIR      = _build
+PROJECTROOT   = ..
 
-# Put it first so that "make" without argument is like "make help".
+# Default target
+.PHONY: help
 help:
-	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+	@echo "MicroUI Documentation Build"
+	@echo ""
+	@echo "Available targets:"
+	@echo "  html      - Build HTML documentation (Doxygen + Sphinx)"
+	@echo "  doxygen   - Build Doxygen XML/HTML only"
+	@echo "  sphinx    - Build Sphinx documentation only (requires doxygen first)"
+	@echo "  clean     - Remove build artifacts"
+	@echo "  livehtml  - Start live reload server for development"
+	@echo ""
 
-.PHONY: help Makefile
+# Build everything
+.PHONY: html
+html: doxygen sphinx
+	@echo "Documentation built successfully in $(BUILDDIR)/html"
 
-# Catch-all target: route all unknown targets to Sphinx using the new
-# "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
-%: Makefile
-	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+# Build Doxygen documentation
+.PHONY: doxygen
+doxygen:
+	@echo "Building Doxygen documentation..."
+	@mkdir -p $(BUILDDIR)/doxygen
+	cd $(PROJECTROOT) && $(DOXYGEN) doc/Doxyfile
+
+# Build Sphinx documentation
+.PHONY: sphinx
+sphinx:
+	@echo "Building Sphinx documentation..."
+	@mkdir -p $(BUILDDIR)/html
+	DOC_BUILD_DIR=$(CURDIR)/$(BUILDDIR) $(SPHINXBUILD) -b html "$(SOURCEDIR)" "$(BUILDDIR)/html" $(SPHINXOPTS)
+
+# Clean build artifacts
+.PHONY: clean
+clean:
+	rm -rf $(BUILDDIR)
+	@echo "Build directory cleaned"
+
+# Live reload server for development
+.PHONY: livehtml
+livehtml: doxygen
+	@echo "Starting live reload server..."
+	DOC_BUILD_DIR=$(CURDIR)/$(BUILDDIR) sphinx-autobuild "$(SOURCEDIR)" "$(BUILDDIR)/html" $(SPHINXOPTS)

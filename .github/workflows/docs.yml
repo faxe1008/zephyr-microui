@@ -1,0 +1,188 @@
+name: Documentation
+
+on:
+  push:
+    branches: [master]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+# Allow only one concurrent deployment
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for git describe
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Doxygen
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y doxygen graphviz
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r doc/requirements.txt
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            # This is a tag - extract version
+            VERSION="${{ github.ref_name }}"
+            VERSION="${VERSION#v}"  # Remove 'v' prefix
+            echo "version=${VERSION}" >> $GITHUB_OUTPUT
+            echo "is_release=true" >> $GITHUB_OUTPUT
+          else
+            echo "version=latest" >> $GITHUB_OUTPUT
+            echo "is_release=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build Doxygen
+        run: |
+          mkdir -p doc/_build/doxygen
+          doxygen doc/Doxyfile
+
+      - name: Build Sphinx documentation
+        working-directory: doc
+        env:
+          DOC_BUILD_DIR: ${{ github.workspace }}/doc/_build
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          sphinx-build -b html . _build/html
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-${{ steps.version.outputs.version }}
+          path: doc/_build/html
+
+  # Deploy to GitHub Pages (only on main branch or tags)
+  deploy:
+    needs: build
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VERSION="${{ github.ref_name }}"
+            VERSION="${VERSION#v}"
+            echo "version=${VERSION}" >> $GITHUB_OUTPUT
+            echo "deploy_path=${VERSION}" >> $GITHUB_OUTPUT
+          else
+            echo "version=latest" >> $GITHUB_OUTPUT
+            echo "deploy_path=latest" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: documentation-${{ steps.version.outputs.version }}
+          path: docs-new
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Download existing pages (if any)
+        continue-on-error: true
+        run: |
+          # Try to get existing content from gh-pages branch
+          git fetch origin gh-pages:gh-pages || true
+          if git show-ref --verify --quiet refs/heads/gh-pages; then
+            git worktree add gh-pages-content gh-pages
+            mkdir -p site
+            cp -r gh-pages-content/* site/ 2>/dev/null || true
+            git worktree remove gh-pages-content --force
+          else
+            mkdir -p site
+          fi
+
+      - name: Organize documentation versions
+        run: |
+          DEPLOY_PATH="${{ steps.version.outputs.deploy_path }}"
+          
+          # Remove old version of this doc if it exists
+          rm -rf "site/${DEPLOY_PATH}"
+          
+          # Copy new documentation
+          mkdir -p "site/${DEPLOY_PATH}"
+          cp -r docs-new/* "site/${DEPLOY_PATH}/"
+          
+          # Create/update root redirect to latest
+          cat > site/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <title>MicroUI for Zephyr Documentation</title>
+            <meta http-equiv="refresh" content="0; url=latest/">
+            <link rel="canonical" href="latest/">
+          </head>
+          <body>
+            <p>Redirecting to <a href="latest/">latest documentation</a>...</p>
+          </body>
+          </html>
+          EOF
+          
+          # Create .nojekyll to prevent Jekyll processing
+          touch site/.nojekyll
+          
+          # Generate versions.json for version switcher
+          echo "Generating versions list..."
+          cd site
+          echo "[" > versions.json
+          first=true
+          for dir in */; do
+            if [ -f "${dir}index.html" ] && [ "$dir" != "./" ]; then
+              version="${dir%/}"
+              if [ "$first" = true ]; then
+                first=false
+              else
+                echo "," >> versions.json
+              fi
+              if [ "$version" = "latest" ]; then
+                echo "  {\"name\": \"latest (main)\", \"version\": \"latest\", \"url\": \"latest/\"}" >> versions.json
+              else
+                echo "  {\"name\": \"v${version}\", \"version\": \"${version}\", \"url\": \"${version}/\"}" >> versions.json
+              fi
+            fi
+          done
+          echo "]" >> versions.json
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
