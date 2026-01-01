@@ -6,6 +6,14 @@ A lightweight immediate-mode GUI library for Zephyr applications.
 
 This module provides the MicroUI library for Zephyr RTOS applications. MicroUI is a tiny immediate-mode UI library designed for resource-constrained embedded systems. This port is based on [rxi/microui](https://github.com/rxi/microui) and extends it with Zephyr-specific integrations and additional features.
 
+## Demo
+
+Check out this demo video showcasing the capabilities of MicroUI:
+
+https://github.com/user-attachments/assets/b123a6ec-5dd3-49dd-85f2-999b8ef1b9f6
+
+The demo application source code is located at `samples/demo` and demonstrates various UI elements and features of MicroUI.
+
 ## Features
 
 - Lightweight immediate-mode GUI

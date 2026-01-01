@@ -11,6 +11,20 @@ it with Zephyr-specific integrations and additional features.
 
 .. _rxi/microui: https://github.com/rxi/microui
 
+Demo
+****
+
+Check out this demo video showcasing the capabilities of MicroUI:
+
+.. raw:: html
+
+   <video width="100%" height="auto" controls style="max-width: 600px;">
+     <source src="_static/demo.mp4" type="video/mp4">
+     Your browser does not support the video tag.
+   </video>
+
+The demo application source code is located at `samples/demo`.
+
 Features
 ********
 
