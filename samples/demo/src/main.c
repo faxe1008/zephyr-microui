@@ -27,7 +27,7 @@ MU_FONT_DECLARE(montserrat_12);
 MU_IMAGE_DECLARE(square_rgb888);
 MU_IMAGE_DECLARE(square_argb8888);
 MU_IMAGE_DECLARE(square_rgb565);
-MU_IMAGE_DECLARE(square_bgr565);
+MU_IMAGE_DECLARE(square_rgb565x);
 MU_IMAGE_DECLARE(square_l8);
 MU_IMAGE_DECLARE(square_al88);
 MU_IMAGE_DECLARE(square_mono01);
@@ -283,7 +283,7 @@ static void test_window(mu_Context *ctx)
 			mu_layout_row(ctx, 1, (int[]){48}, 48);
 			img_rect = mu_layout_next(ctx);
 			mu_draw_image(ctx, mu_vec2(img_rect.x, img_rect.y),
-				      (mu_Image)&square_bgr565);
+				      (mu_Image)&square_rgb565x);
 			mu_layout_end_column(ctx);
 
 			mu_layout_begin_column(ctx);

@@ -36,7 +36,7 @@ config DUMMY_DISPLAY_PIXEL_FORMAT_RGB_565
         7......0 15.....8
       | gggBbbbb RrrrrGgg | ...
 
-config DUMMY_DISPLAY_PIXEL_FORMAT_BGR_565
+config DUMMY_DISPLAY_PIXEL_FORMAT_RGB_565X
     bool "16-bit BGR 565"
     help
       16-bit RGB format packed into two bytes: 5 blue bits [15:11], 6
@@ -64,7 +64,7 @@ config DUMMY_DISPLAY_COLOR_FORMAT
     default 2 if DUMMY_DISPLAY_PIXEL_FORMAT_MONO10
     default 3 if DUMMY_DISPLAY_PIXEL_FORMAT_ARGB_8888
     default 4 if DUMMY_DISPLAY_PIXEL_FORMAT_RGB_565
-    default 5 if DUMMY_DISPLAY_PIXEL_FORMAT_BGR_565
+    default 5 if DUMMY_DISPLAY_PIXEL_FORMAT_RGB_565X
     default 6 if DUMMY_DISPLAY_PIXEL_FORMAT_L_8
     default 7 if DUMMY_DISPLAY_PIXEL_FORMAT_AL_88
 
