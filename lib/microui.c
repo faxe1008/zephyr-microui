@@ -25,16 +25,11 @@
 #include <string.h>
 #include <stdint.h>
 #include <microui/microui.h>
+#include <zephyr/sys/__assert.h>
 
 #define unused(x) ((void) (x))
 
-#define expect(x) do {                                               \
-    if (!(x)) {                                                      \
-      fprintf(stderr, "Fatal error: %s:%d: assertion '%s' failed\n", \
-        __FILE__, __LINE__, #x);                                     \
-      abort();                                                       \
-    }                                                                \
-  } while (0)
+#define expect(x) __ASSERT_NO_MSG(x)
 
 #define push(stk, val) do {                                                 \
     expect((stk).idx < (int) (sizeof((stk).items) / sizeof(*(stk).items))); \
