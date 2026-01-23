@@ -1,6 +1,6 @@
 /*
  * Auto-generated image data
- * Image: square_bgr565
+ * Image: square_rgb565x
  * Size: 48x48
  * Format: BGR_565 (16-bit BGR (5-6-5))
  * Data size: 4608 bytes
@@ -11,7 +11,7 @@
 #include <microui/image.h>
 #include <zephyr/drivers/display.h>
 
-static const uint8_t square_bgr565_data[] = {
+static const uint8_t square_rgb_565x_data[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -398,12 +398,12 @@ static const uint8_t square_bgr565_data[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 };
 
-const struct mu_ImageDescriptor square_bgr565 = {
+const struct mu_ImageDescriptor square_rgb565x = {
 	.width = 48,
 	.height = 48,
 	.stride = 96,
-	.data_size = sizeof(square_bgr565_data),
-	.data = square_bgr565_data,
-	.pixel_format = PIXEL_FORMAT_BGR_565,
+	.data_size = sizeof(square_rgb_565x_data),
+	.data = square_rgb_565x_data,
+	.pixel_format = PIXEL_FORMAT_RGB_565X,
 	.compression = MU_IMAGE_COMPRESSION_NONE,
 };

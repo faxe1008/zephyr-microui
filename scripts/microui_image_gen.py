@@ -44,9 +44,9 @@ PIXEL_FORMATS = {
         "description": "16-bit RGB (5-6-5)",
     },
     "BGR_565": {
-        "zephyr_enum": "PIXEL_FORMAT_BGR_565",
+        "zephyr_enum": "PIXEL_FORMAT_RGB_565X",
         "bits_per_pixel": 16,
-        "description": "16-bit BGR (5-6-5)",
+        "description": "16-bit BGR (5-6-5) byte swapped",
     },
     "L_8": {
         "zephyr_enum": "PIXEL_FORMAT_L_8",
