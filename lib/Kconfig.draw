@@ -56,7 +56,7 @@ config MICROUI_RENDER_RGB_565
     help
       Enable support for 16-bit RGB 565 pixel format rendering.
 
-config MICROUI_RENDER_BGR_565
+config MICROUI_RENDER_RGB_565X
     bool "Enable BGR 565 render support"
     default y
     help
