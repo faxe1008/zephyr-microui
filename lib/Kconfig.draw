@@ -38,6 +38,15 @@ config MICROUI_DRAW_EXTENSIONS
       Enable additional extensions for MicroUI that provide extra functionality and
       features beyond the core library. Includes support for drawing circles and polygons.
 
+config MICROUI_RENDER_RGBX565_TO_BGR565_RENAME
+    bool "Rename RGBX_565 to BGR_565 pixel format"
+    default y if "$(VERSION_MAJOR)" = "4" && "$(VERSION_MINOR)" < "4"
+    help
+      During development of Zephyr 4.4.0, the pixel format PIXEL_FORMAT_BGR_565
+      was renamed to PIXEL_FORMAT_RGB_565X. Enable this option to use the old
+      BGR_565 naming convention, which helps prevent compiler errors for older
+      Zephyr versions still using the wrongly named display format.
+
 config MICROUI_RENDER_RGB_888
     bool "Enable RGB 888 render support"
     default y
@@ -57,10 +66,10 @@ config MICROUI_RENDER_RGB_565
       Enable support for 16-bit RGB 565 pixel format rendering.
 
 config MICROUI_RENDER_RGB_565X
-    bool "Enable BGR 565 render support"
+    bool "Enable RGB_565X render support"
     default y
     help
-      Enable support for 16-bit BGR 565 pixel format rendering.
+      Enable support for 16-bit RGB_565X (previously BGR565) pixel format rendering.
 
 config MICROUI_RENDER_MONO
     bool "Enable monochrome render support"

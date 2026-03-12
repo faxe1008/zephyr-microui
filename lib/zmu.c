@@ -275,13 +275,13 @@ static __always_inline void set_pixel_rgb565(int x, int y, uint32_t pixel)
 #endif
 
 #ifdef CONFIG_MICROUI_RENDER_RGB_565X
-static __always_inline uint32_t color_to_pixel_bgr565(mu_Color color)
+static __always_inline uint32_t color_to_pixel_rgbx565(mu_Color color)
 {
 	return ((uint32_t)(color.b & 0xF8) << 8) | ((uint32_t)(color.g & 0xFC) << 3) |
 	       (uint32_t)(color.r >> 3);
 }
 
-static __always_inline void set_pixel_bgr565(int x, int y, uint32_t pixel)
+static __always_inline void set_pixel_rgbx565(int x, int y, uint32_t pixel)
 {
 	int index = (y * DISPLAY_WIDTH + x) * 2;
 	uint16_t *p = (uint16_t *)(display_buffer + index);
@@ -376,7 +376,7 @@ static __always_inline uint32_t color_to_pixel(mu_Color color)
 #elif defined(CONFIG_MICROUI_RENDER_RGB_565)
 	return color_to_pixel_rgb565(color);
 #elif defined(CONFIG_MICROUI_RENDER_RGB_565X)
-	return color_to_pixel_bgr565(color);
+	return color_to_pixel_rgbx565(color);
 #elif defined(CONFIG_MICROUI_RENDER_MONO)
 	return color_to_pixel_mono(color);
 #elif defined(CONFIG_MICROUI_RENDER_L_8)
@@ -401,8 +401,13 @@ static __always_inline uint32_t color_to_pixel(mu_Color color)
 	}
 #endif
 #ifdef CONFIG_MICROUI_RENDER_RGB_565X
+
+#ifdef CONFIG_MICROUI_RENDER_RGBX565_TO_BGR565_RENAME
+	if (display_caps.current_pixel_format == PIXEL_FORMAT_BGR_565) {
+#else
 	if (display_caps.current_pixel_format == PIXEL_FORMAT_RGB_565X) {
-		return color_to_pixel_bgr565(color);
+#endif
+		return color_to_pixel_rgbx565(color);
 	}
 #endif
 #ifdef CONFIG_MICROUI_RENDER_MONO
@@ -435,7 +440,7 @@ static __always_inline void set_pixel_unchecked(int x, int y, uint32_t pixel)
 #elif defined(CONFIG_MICROUI_RENDER_RGB_565)
 	set_pixel_rgb565(x, y, pixel);
 #elif defined(CONFIG_MICROUI_RENDER_RGB_565X)
-	set_pixel_bgr565(x, y, pixel);
+	set_pixel_rgbx565(x, y, pixel);
 #elif defined(CONFIG_MICROUI_RENDER_MONO)
 	set_pixel_mono(x, y, pixel);
 #elif defined(CONFIG_MICROUI_RENDER_L_8)
@@ -463,8 +468,13 @@ static __always_inline void set_pixel_unchecked(int x, int y, uint32_t pixel)
 	}
 #endif
 #ifdef CONFIG_MICROUI_RENDER_RGB_565X
-	if (display_caps.current_pixel_format == PIXEL_FORMAT_RGB_565X) {
-		set_pixel_bgr565(x, y, pixel);
+
+#ifdef CONFIG_MICROUI_RENDER_RGBX565_TO_BGR565_RENAME
+	if (display_caps.current_pixel_format == PIXEL_FORMAT_BGR_565) {
+#else
+    if (display_caps.current_pixel_format == PIXEL_FORMAT_RGB_565X) {
+#endif
+		set_pixel_rgbx565(x, y, pixel);
 		return;
 	}
 #endif
@@ -882,11 +892,15 @@ static __always_inline mu_Color pixel_to_color(const uint8_t *src, int offset,
 		color.b = (rgb565 & 0x1F) << 3;
 		break;
 	}
-	case PIXEL_FORMAT_RGB_565X: {
-		uint16_t bgr565 = src[offset * 2] | (src[offset * 2 + 1] << 8);
-		color.b = ((bgr565 >> 11) & 0x1F) << 3;
-		color.g = ((bgr565 >> 5) & 0x3F) << 2;
-		color.r = (bgr565 & 0x1F) << 3;
+#ifdef CONFIG_MICROUI_RENDER_RGBX565_TO_BGR565_RENAME
+    case PIXEL_FORMAT_BGR_565: {
+#else
+    case PIXEL_FORMAT_RGB_565X: {
+#endif
+		uint16_t rgbx565 = src[offset * 2] | (src[offset * 2 + 1] << 8);
+		color.b = ((rgbx565 >> 11) & 0x1F) << 3;
+		color.g = ((rgbx565 >> 5) & 0x3F) << 2;
+		color.r = (rgbx565 & 0x1F) << 3;
 		break;
 	}
 	case PIXEL_FORMAT_L_8:
