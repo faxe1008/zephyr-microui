@@ -28,6 +28,13 @@ config MICROUI_TEXT_UTF8
       Enable support for UTF-8 encoded text in MicroUI. This allows the display
       of a wide range of characters and symbols.
 
+config MICROUI_FONT_KERNING
+    bool "Enable MicroUI font kerning"
+    help
+      Apply pair-specific kerning adjustments when drawing and measuring text.
+      Generated font assets always include kerning tables, but this option keeps
+      them out of the final binary when disabled.
+
 config MICROUI_EVENT_LOOP
     bool "Enable MicroUI workqueue event loop"
     default y
