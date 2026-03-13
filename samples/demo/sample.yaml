@@ -29,6 +29,10 @@ tests:
     extra_configs:
       - CONFIG_MICROUI_DRAW_EXTENSIONS=y
 
+  sample.modules.microui.demo.font_kerning:
+    extra_configs:
+      - CONFIG_MICROUI_FONT_KERNING=y
+
   sample.modules.microui.demo.minimal:
     extra_configs:
       - CONFIG_MICROUI_INPUT=n
