@@ -105,6 +105,47 @@ static __always_inline const struct mu_FontGlyph *find_glyph(const struct mu_Fon
 	return (base->codepoint == codepoint) ? base : NULL;
 }
 
+#ifdef CONFIG_MICROUI_FONT_KERNING
+static __always_inline int find_kerning_adjustment(const struct mu_FontDescriptor *font,
+						   uint32_t left_codepoint,
+						   uint32_t right_codepoint)
+{
+	const struct mu_FontKerningPair *pairs = font->kerning_pairs;
+	uint32_t len = font->kerning_count;
+
+	if (unlikely(pairs == NULL || len == 0)) {
+		return 0;
+	}
+
+	uint64_t target_key = ((uint64_t)left_codepoint << 32) | right_codepoint;
+	uint32_t low = 0;
+	uint32_t high = len;
+
+	while (low < high) {
+		uint32_t mid = low + (high - low) / 2;
+		uint64_t pair_key =
+			((uint64_t)pairs[mid].left_codepoint << 32) | pairs[mid].right_codepoint;
+
+		if (pair_key < target_key) {
+			low = mid + 1;
+		} else {
+			high = mid;
+		}
+	}
+
+	if (low < len) {
+		uint64_t pair_key =
+			((uint64_t)pairs[low].left_codepoint << 32) | pairs[low].right_codepoint;
+
+		if (pair_key == target_key) {
+			return pairs[low].adjustment;
+		}
+	}
+
+	return 0;
+}
+#endif
+
 static __always_inline int next_utf8_codepoint(const char *str, uint32_t *codepoint)
 {
 #ifdef CONFIG_MICROUI_TEXT_UTF8
@@ -680,6 +721,10 @@ static void renderer_draw_text(mu_Font f, const char *text, mu_Vec2 pos, mu_Colo
 {
 	int x = pos.x;
 	const struct mu_FontDescriptor *font = (struct mu_FontDescriptor *)f;
+#ifdef CONFIG_MICROUI_FONT_KERNING
+	bool has_prev_codepoint = false;
+	uint32_t prev_codepoint = 0;
+#endif /* CONFIG_MICROUI_FONT_KERNING */
 
 	if (!font) {
 		LOG_WRN_ONCE("Font is NULL, cannot draw text");
@@ -695,12 +740,20 @@ static void renderer_draw_text(mu_Font f, const char *text, mu_Vec2 pos, mu_Colo
 			break;
 		}
 
+#ifdef CONFIG_MICROUI_FONT_KERNING
+		if (has_prev_codepoint) {
+			x += find_kerning_adjustment(font, prev_codepoint, codepoint);;
+		}
+		has_prev_codepoint = true;
+		prev_codepoint = codepoint;
+#endif /* CONFIG_MICROUI_FONT_KERNING */
+
 		const struct mu_FontGlyph *glyph = find_glyph(font, codepoint);
 		if (likely(glyph)) {
 			draw_glyph(glyph, x, pos.y, font, color);
-			x += glyph->width + font->char_spacing;
+			x += glyph->width;
 		} else {
-			x += font->default_width + font->char_spacing;
+			x += font->default_width;
 		}
 
 		current += bytes_consumed;
@@ -754,9 +807,12 @@ static void renderer_draw_icon(int id, mu_Rect rect, mu_Color color)
 static int renderer_get_text_width(mu_Font f, const char *text, int len)
 {
 	int width = 0;
-	int char_count = 0;
 	int byte_count = 0;
 	const struct mu_FontDescriptor *font = (const struct mu_FontDescriptor *)f;
+#ifdef CONFIG_MICROUI_FONT_KERNING
+	bool has_prev_codepoint = false;
+	uint32_t prev_codepoint = 0;
+#endif /* CONFIG_MICROUI_FONT_KERNING */
 
 	if (!font) {
 		LOG_WRN_ONCE("Font is NULL, returning width 0");
@@ -789,17 +845,24 @@ static int renderer_get_text_width(mu_Font f, const char *text, int len)
 		const struct mu_FontGlyph *glyph = find_glyph(font, codepoint);
 		if (likely(glyph)) {
 			width += glyph->width;
+#ifdef CONFIG_MICROUI_FONT_KERNING
+			if (has_prev_codepoint) {
+				width += find_kerning_adjustment(font, prev_codepoint, codepoint);
+			}
+			has_prev_codepoint = true;
+			prev_codepoint = codepoint;
+#endif  /* CONFIG_MICROUI_TEXT_WIDTH_CACHE */
 		} else {
 			width += font->default_width;
 		}
 
-		char_count++;
+#ifdef CONFIG_MICROUI_FONT_KERNING
+		has_prev_codepoint = true;
+		prev_codepoint = codepoint;
+#endif  /* CONFIG_MICROUI_TEXT_WIDTH_CACHE */
+
 		byte_count += bytes_consumed;
 		current += bytes_consumed;
-	}
-
-	if (char_count > 0) {
-		width += (char_count - 1) * font->char_spacing;
 	}
 
 #ifdef CONFIG_MICROUI_TEXT_WIDTH_CACHE

@@ -3,6 +3,11 @@ import argparse
 import os
 import math
 
+try:
+    from fontTools.ttLib import TTFont
+except Exception:
+    TTFont = None
+
 
 def sanitize_c_identifier(name):
     """Convert a string to a valid C identifier by replacing invalid characters with underscores."""
@@ -102,7 +107,9 @@ def generate_font_data(
     glyphs = generate_variable_width_glyphs(
         font, bitmap_width, font_height, character_codes
     )
+    kerning_pairs = generate_kerning_pairs(ttf_path, font_size, character_codes)
     print(f"Generated {len(glyphs)} character glyphs")
+    print(f"Generated {len(kerning_pairs)} kerning pairs")
 
     write_c_file(
         output_path,
@@ -110,6 +117,7 @@ def generate_font_data(
         font_height,
         bytes_per_row,
         glyphs,
+        kerning_pairs,
         ttf_path,
         font_size,
         avg_width,
@@ -189,8 +197,8 @@ def generate_single_glyph(font, code, bitmap_width, font_height, bytes_per_row):
     bitmap = [0] * (font_height * bytes_per_row)
 
     try:
-        bbox = measure_draw.textbbox((0, 0), char, font=font)
-        char_width = max(1, bbox[2] - bbox[0])
+        advance = font.getlength(char)
+        char_width = int(round(advance))
         char_width = min(char_width, bitmap_width)
 
         if code == 32:
@@ -222,12 +230,185 @@ def generate_single_glyph(font, code, bitmap_width, font_height, bytes_per_row):
     return (code, char_width, bitmap)
 
 
+def get_x_adjustment(value_record):
+    if value_record is None:
+        return 0
+
+    adjustment = 0
+    adjustment += int(getattr(value_record, "XAdvance", 0) or 0)
+    adjustment += int(getattr(value_record, "XPlacement", 0) or 0)
+    return adjustment
+
+
+def get_xadvance(value_record):
+    """
+    Return only the XAdvance component from a valueRecord-like object.
+    We treat missing attributes as 0. Value is returned as an int (font units).
+    """
+    if value_record is None:
+        return 0
+    # Some fonts use XAdvance, some may have xAdvance; use getattr safely.
+    return int(getattr(value_record, "XAdvance", getattr(value_record, "xAdvance", 0)) or 0)
+
+
+def generate_kerning_pairs(ttf_path, font_size, character_codes):
+    """
+    Generate kerning pairs.
+    """
+    if not character_codes:
+        return []
+
+    if TTFont is None:
+        print("Warning: fontTools not available, kerning table generation skipped")
+        return []
+
+    kerning_map = {}
+
+    with TTFont(ttf_path) as tt:
+        # units per em => scale factor to convert font units -> pixels
+        units_per_em = tt["head"].unitsPerEm
+        scale = float(font_size) / float(units_per_em) if units_per_em else 1.0
+
+        # Build cmap-related maps for only the requested codepoints
+        cmap = tt.getBestCmap() or {}
+        cp_to_glyph = {}
+        glyph_to_cp = {}
+        for codepoint in character_codes:
+            glyph_name = cmap.get(codepoint)
+            if glyph_name is None:
+                continue
+            cp_to_glyph[codepoint] = glyph_name
+            # Map glyph -> first codepoint that maps to it (enough for kerning lookup)
+            if glyph_name not in glyph_to_cp:
+                glyph_to_cp[glyph_name] = codepoint
+
+        if len(cp_to_glyph) < 2:
+            return []
+
+        # Choose whether to use GPOS or legacy kern table
+        has_gpos = "GPOS" in tt
+
+        # If no GPOS, process legacy 'kern' table (if present)
+        if not has_gpos and "kern" in tt:
+            for kern_table in tt["kern"].kernTables:
+                if not hasattr(kern_table, "kernTable"):
+                    continue
+                for pair, value in kern_table.kernTable.items():
+                    # pair may be glyph names or glyph indices
+                    if isinstance(pair[0], str):
+                        left_name, right_name = pair
+                    else:
+                        glyph_order = tt.getGlyphOrder()
+                        left_name = glyph_order[pair[0]]
+                        right_name = glyph_order[pair[1]]
+
+                    left_cp = glyph_to_cp.get(left_name)
+                    right_cp = glyph_to_cp.get(right_name)
+                    if left_cp is None or right_cp is None:
+                        continue
+
+                    # kern table values are typically integers in font units; use directly
+                    kerning_map[(left_cp, right_cp)] = kerning_map.get((left_cp, right_cp), 0) + int(value)
+
+        # If GPOS is present, parse pair/class lookups
+        if has_gpos:
+            gpos = tt["GPOS"].table
+            lookup_list = getattr(gpos, "LookupList", None)
+            if lookup_list is not None:
+                for lookup in lookup_list.Lookup:
+                    # Pair Adjustment Positioning
+                    if lookup.LookupType != 2:
+                        continue
+
+                    for subtable in lookup.SubTable:
+                        format_type = getattr(subtable, "Format", 0)
+
+                        # Format 1: PairSet
+                        if format_type == 1:
+                            # Coverage.glyphs aligns with PairSet elements
+                            for left_name, pair_set in zip(subtable.Coverage.glyphs, subtable.PairSet):
+                                left_cp = glyph_to_cp.get(left_name)
+                                if left_cp is None:
+                                    continue
+
+                                for pair_value_record in pair_set.PairValueRecord:
+                                    # Use only Value1.XAdvance as the kerning delta
+                                    # (do not sum Value1 and Value2)
+                                    adv = get_xadvance(pair_value_record.Value1)
+                                    if adv == 0:
+                                        continue
+                                    right_name = pair_value_record.SecondGlyph
+                                    right_cp = glyph_to_cp.get(right_name)
+                                    if right_cp is None:
+                                        continue
+
+                                    key = (left_cp, right_cp)
+                                    kerning_map[key] = kerning_map.get(key, 0) + adv
+
+                        # Format 2: Class-to-class pairs
+                        elif format_type == 2:
+                            # class defs map glyph name -> class index
+                            class_def1 = getattr(subtable, "ClassDef1", None)
+                            class_def2 = getattr(subtable, "ClassDef2", None)
+                            if class_def1 is None or class_def2 is None:
+                                continue
+                            class_def1_map = getattr(class_def1, "classDefs", {}) if class_def1 else {}
+                            class_def2_map = getattr(class_def2, "classDefs", {}) if class_def2 else {}
+
+                            class1_records = subtable.Class1Record
+
+                            # Build mapping class2 -> list of codepoints within requested character set
+                            class2_to_cps = {}
+                            for cp, glyph_name in cp_to_glyph.items():
+                                class2 = class_def2_map.get(glyph_name, 0)
+                                class2_to_cps.setdefault(class2, []).append(cp)
+
+                            for left_name in subtable.Coverage.glyphs:
+                                left_cp = glyph_to_cp.get(left_name)
+                                if left_cp is None:
+                                    continue
+
+                                class1 = class_def1_map.get(left_name, 0)
+                                if class1 >= len(class1_records):
+                                    continue
+
+                                class1_record = class1_records[class1]
+                                for class2, right_cps in class2_to_cps.items():
+                                    if class2 >= len(class1_record.Class2Record):
+                                        continue
+
+                                    class2_record = class1_record.Class2Record[class2]
+                                    # Use only Value1.XAdvance from class2_record (font units)
+                                    adv = get_xadvance(class2_record.Value1)
+                                    if adv == 0:
+                                        continue
+
+                                    for right_cp in right_cps:
+                                        key = (left_cp, right_cp)
+                                        kerning_map[key] = kerning_map.get(key, 0) + adv
+
+    # Convert font units -> pixels and clamp to int8 range
+    kerning_pairs = []
+    for (left_cp, right_cp), value in kerning_map.items():
+        # value currently in font units (int). Scale to px and round.
+        px_adjustment = int(round(float(value) * scale))
+        if px_adjustment == 0:
+            continue
+        # clamp to signed 8-bit range
+        px_adjustment = max(-128, min(127, px_adjustment))
+        kerning_pairs.append((left_cp, right_cp, px_adjustment))
+
+    # Sort by left, then right to match binary-search expectation
+    kerning_pairs.sort(key=lambda pair: (pair[0], pair[1]))
+    return kerning_pairs
+
 def write_c_file(
     output_path,
     bitmap_width,
     height,
     bytes_per_row,
     glyphs,
+    kerning_pairs,
     source_font,
     size,
     avg_width,
@@ -283,6 +464,19 @@ def write_c_file(
             f.write(f" // {format_char_name(unicode)} (width: {width})\n")
         f.write("};\n\n")
 
+        f.write("#ifdef CONFIG_MICROUI_FONT_KERNING\n")
+        f.write(f"const struct mu_FontKerningPair {font_name}_kerning_pairs[] = {{\n")
+        if kerning_pairs:
+            for left_code, right_code, adjustment in kerning_pairs:
+                f.write(
+                    f"    {{{left_code}u, {right_code}u, {adjustment}}},"
+                    f" // {format_char_name(left_code)} {format_char_name(right_code)}\n"
+                )
+        else:
+            f.write("    {0u, 0u, 0}\n")
+        f.write("};\n")
+        f.write("#endif\n\n")
+
         f.write(f"const struct mu_FontDescriptor {font_name} = {{\n")
         f.write(f"    .height = {height},\n")
         f.write(f"    .bitmap_width = {bitmap_width},\n")
@@ -290,7 +484,11 @@ def write_c_file(
         f.write(f"    .default_width = {int(avg_width + 0.5)},\n")
         f.write("    .char_spacing = 1,\n")
         f.write(f"    .glyph_count = {len(glyphs)},\n")
-        f.write(f"    .glyphs = {font_name}_glyphs\n")
+        f.write(f"    .glyphs = {font_name}_glyphs,\n")
+        f.write("#ifdef CONFIG_MICROUI_FONT_KERNING\n")
+        f.write(f"    .kerning_count = {len(kerning_pairs)},\n")
+        f.write(f"    .kerning_pairs = {font_name}_kerning_pairs\n")
+        f.write("#endif\n")
         f.write("};\n")
 
 

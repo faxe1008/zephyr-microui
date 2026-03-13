@@ -20,6 +20,14 @@ struct mu_FontGlyph {
 	const uint8_t *bitmap;
 };
 
+#ifdef CONFIG_MICROUI_FONT_KERNING
+struct mu_FontKerningPair {
+	uint32_t left_codepoint;
+	uint32_t right_codepoint;
+	int8_t adjustment;
+};
+#endif
+
 struct mu_FontDescriptor {
 	uint32_t height;
 	uint32_t bitmap_width;
@@ -28,6 +36,10 @@ struct mu_FontDescriptor {
 	uint32_t char_spacing;
 	uint32_t glyph_count;
 	const struct mu_FontGlyph *glyphs;
+#ifdef CONFIG_MICROUI_FONT_KERNING
+	uint32_t kerning_count;
+	const struct mu_FontKerningPair *kerning_pairs;
+#endif
 };
 
 static inline void mu_set_font(mu_Context *ctx, const struct mu_FontDescriptor *font)
