@@ -595,44 +595,54 @@ static __always_inline void draw_glyph(const struct mu_FontGlyph *glyph, int x, 
 	int start_row = visible.y - y;
 	int end_row = visible.y + visible.h - y;
 
-	for (int row = start_row; row < end_row; row++) {
-		int screen_y = y + row;
-		if (font->bitmap_width <= 8) {
-			uint8_t row_data = glyph->bitmap[row];
-			/* Mask out bits outside the visible range */
-			row_data &= (0xFF >> start_col);
-			row_data &= (0xFF << (8 - end_col));
+	if (font->bitmap_width <= 8) {
+		uint8_t visible_mask = (0xFF >> start_col) & (0xFF << (8 - end_col));
+
+		for (int row = start_row; row < end_row; row++) {
+			int screen_y = y + row;
+			uint8_t row_data = glyph->bitmap[row] & visible_mask;
+
 			while (row_data) {
 				int col = __builtin_clz((uint32_t)row_data) - 24;
 				set_pixel_unchecked(x + col, screen_y, pixel);
 				row_data &= ~(0x80 >> col);
 			}
-		} else if (font->bitmap_width <= 16) {
-			uint16_t row_data = sys_get_be16(&glyph->bitmap[row * 2]);
-			/* Mask out bits outside the visible range */
-			row_data &= (0xFFFF >> start_col);
-			row_data &= (0xFFFF << (16 - end_col));
+		}
+	} else if (font->bitmap_width <= 16) {
+		uint16_t visible_mask = (0xFFFF >> start_col) & (0xFFFF << (16 - end_col));
+
+		for (int row = start_row; row < end_row; row++) {
+			int screen_y = y + row;
+			uint16_t row_data = sys_get_be16(&glyph->bitmap[row * 2]) & visible_mask;
+
 			while (row_data) {
 				int col = __builtin_clz((uint32_t)row_data) - 16;
 				set_pixel_unchecked(x + col, screen_y, pixel);
 				row_data &= ~(0x8000 >> col);
 			}
-		} else if (font->bitmap_width <= 32) {
-			uint32_t row_data = sys_get_be32(&glyph->bitmap[row * 4]);
-			/* Mask out bits outside the visible range */
-			row_data &= (0xFFFFFFFFu >> start_col);
-			row_data &= (0xFFFFFFFFu << (32 - end_col));
+		}
+	} else if (font->bitmap_width <= 32) {
+		uint32_t visible_mask = (0xFFFFFFFFu >> start_col) & (0xFFFFFFFFu << (32 - end_col));
+
+		for (int row = start_row; row < end_row; row++) {
+			int screen_y = y + row;
+			uint32_t row_data = sys_get_be32(&glyph->bitmap[row * 4]) & visible_mask;
+
 			while (row_data) {
 				int col = __builtin_clz(row_data);
 				set_pixel_unchecked(x + col, screen_y, pixel);
 				row_data &= ~(0x80000000u >> col);
 			}
-		} else {
-			/* bitmap_width <= 64 */
-			uint64_t row_data = sys_get_be64(&glyph->bitmap[row * 8]);
-			/* Mask out bits outside the visible range */
-			row_data &= (0xFFFFFFFFFFFFFFFFull >> start_col);
-			row_data &= (0xFFFFFFFFFFFFFFFFull << (64 - end_col));
+		}
+	} else {
+		/* bitmap_width <= 64 */
+		uint64_t visible_mask =
+			(0xFFFFFFFFFFFFFFFFull >> start_col) & (0xFFFFFFFFFFFFFFFFull << (64 - end_col));
+
+		for (int row = start_row; row < end_row; row++) {
+			int screen_y = y + row;
+			uint64_t row_data = sys_get_be64(&glyph->bitmap[row * 8]) & visible_mask;
+
 			while (row_data) {
 				int col = __builtin_clzll(row_data);
 				set_pixel_unchecked(x + col, screen_y, pixel);
