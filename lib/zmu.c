@@ -762,15 +762,19 @@ static void renderer_draw_text(mu_Font f, const char *text, mu_Vec2 pos, mu_Colo
 
 static void renderer_draw_icon(int id, mu_Rect rect, mu_Color color)
 {
+	int min_side = mu_min(rect.w, rect.h);
+	int inset = mu_max(1, (min_side * 24) / 100);
+	int left = rect.x + inset;
+	int right = rect.x + rect.w - inset - 1;
+	int top = rect.y + inset;
+	int bottom = rect.y + rect.h - inset - 1;
+	int icon_w = right - left;
+	int icon_h = bottom - top;
+
 	switch (id) {
 	case MU_ICON_CLOSE:
-		renderer_draw_line(
-			(mu_Vec2){rect.x + rect.w / 4, rect.y + rect.h / 4},
-			(mu_Vec2){rect.x + rect.w - rect.w / 4, rect.y + rect.h - rect.h / 4}, 1,
-			color);
-		renderer_draw_line((mu_Vec2){rect.x + rect.w - rect.w / 4, rect.y + rect.h / 4},
-				   (mu_Vec2){rect.x + rect.w / 4, rect.y + rect.h - rect.h / 4}, 1,
-				   color);
+		renderer_draw_line((mu_Vec2){left, top}, (mu_Vec2){right, bottom}, 1, color);
+		renderer_draw_line((mu_Vec2){right, top}, (mu_Vec2){left, bottom}, 1, color);
 		break;
 	case MU_ICON_COLLAPSED:
 		renderer_draw_line((mu_Vec2){rect.x + rect.w / 3, rect.y + rect.h / 3},
@@ -793,13 +797,11 @@ static void renderer_draw_icon(int id, mu_Rect rect, mu_Color color)
 				   (mu_Vec2){rect.x + rect.w / 3, rect.y + rect.h / 3}, 1, color);
 		break;
 	case MU_ICON_CHECK:
-		// Draw a check mark with some padding
-		renderer_draw_line((mu_Vec2){rect.x + rect.w / 4, rect.y + rect.h / 2},
-				   (mu_Vec2){rect.x + rect.w / 2, rect.y + rect.h - rect.h / 4}, 1,
-				   color);
-		renderer_draw_line((mu_Vec2){rect.x + rect.w / 2, rect.y + rect.h - rect.h / 4},
-				   (mu_Vec2){rect.x + rect.w - rect.w / 5, rect.y + rect.h / 5}, 1,
-				   color);
+		renderer_draw_line((mu_Vec2){left, top + (icon_h * 62) / 100},
+				   (mu_Vec2){left + (icon_w * 35) / 100, top + (icon_h * 96) / 100},
+				   1, color);
+		renderer_draw_line((mu_Vec2){left + (icon_w * 35) / 100, top + (icon_h * 96) / 100},
+				   (mu_Vec2){right, top + (icon_h * 17) / 100}, 1, color);
 		break;
 	}
 }
