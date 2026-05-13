@@ -304,7 +304,7 @@ static __always_inline uint32_t color_to_pixel_rgb565(mu_Color color)
 {
 	uint16_t rgb565 = ((uint32_t)(color.r & 0xF8) << 8) | ((uint32_t)(color.g & 0xFC) << 3) |
 			  (uint32_t)(color.b >> 3);
-	return sys_cpu_to_be16(rgb565);
+	return rgb565;
 }
 
 static __always_inline void set_pixel_rgb565(int x, int y, uint32_t pixel)
@@ -951,7 +951,7 @@ static __always_inline mu_Color pixel_to_color(const uint8_t *src, int offset,
 		color.a = src[offset * 4 + 3];
 		break;
 	case PIXEL_FORMAT_RGB_565: {
-		uint16_t rgb565 = (src[offset * 2] << 8) | src[offset * 2 + 1];
+		uint16_t rgb565 = src[offset * 2] | (src[offset * 2 + 1] << 8);
 		color.r = ((rgb565 >> 11) & 0x1F) << 3;
 		color.g = ((rgb565 >> 5) & 0x3F) << 2;
 		color.b = (rgb565 & 0x1F) << 3;
