@@ -32,6 +32,15 @@ config MICROUI_RENDER_CLEAR_BEFORE_DRAW
       are rendered. In the case where you have one window that covers the entire screen
       and is always fully redrawn, this can be disabled to improve performance.
 
+config MICROUI_RENDER_TILE_HEIGHT
+    int "MicroUI render tile height"
+    default 16
+    range 1 4096
+    help
+      Set the number of display rows rendered per tile upload. Lower values
+      reduce RAM usage for the render buffer, while higher values can improve
+      throughput by reducing the number of display_write() calls per frame.
+
 config MICROUI_DRAW_EXTENSIONS
     bool "Enable MicroUI draw extensions"
     help

@@ -36,14 +36,14 @@ LOG_MODULE_REGISTER(microui_zmu, LOG_LEVEL_INF);
 #define DISPLAY_NODE            DT_CHOSEN(zephyr_display)
 #define DISPLAY_WIDTH           DT_PROP(DISPLAY_NODE, width)
 #define DISPLAY_HEIGHT          DT_PROP(DISPLAY_NODE, height)
-#define DISPLAY_BYTES_PER_PIXEL (CONFIG_MICROUI_BITS_PER_PIXEL / 8)
-#define DISPLAY_STRIDE          (ROUND_UP(DISPLAY_WIDTH, 8) * DISPLAY_BYTES_PER_PIXEL)
-
-#define DISPLAY_BUFFER_SIZE                                                                        \
-	(CONFIG_MICROUI_BITS_PER_PIXEL * ROUND_UP(DISPLAY_WIDTH, 8) * DISPLAY_HEIGHT) / 8
+#define TILE_WIDTH              DISPLAY_WIDTH
+#define TILE_HEIGHT             CONFIG_MICROUI_RENDER_TILE_HEIGHT
+#define DISPLAY_BYTES_PER_PIXEL DIV_ROUND_UP(CONFIG_MICROUI_BITS_PER_PIXEL, 8)
+#define TILE_ROW_BYTES          DIV_ROUND_UP(DISPLAY_WIDTH *CONFIG_MICROUI_BITS_PER_PIXEL, 8)
+#define TILE_BUFFER_SIZE        (TILE_ROW_BYTES * TILE_HEIGHT)
 
 static const struct device *display_dev = DEVICE_DT_GET(DISPLAY_NODE);
-static uint8_t display_buffer[DISPLAY_BUFFER_SIZE] __aligned(4);
+static uint8_t tile_buffer[TILE_BUFFER_SIZE] __aligned(4);
 static struct display_capabilities display_caps;
 
 /* Microui Context */
@@ -52,6 +52,7 @@ static mu_Color bg_color = {90, 95, 100, 255};
 
 /* Clipping rectangle */
 static mu_Rect clip_rect = {0, 0, 0, 0};
+static mu_Rect tile_rect = {0, 0, 0, 0};
 
 /* Text width cache */
 #ifdef CONFIG_MICROUI_TEXT_WIDTH_CACHE
@@ -82,6 +83,11 @@ static struct k_work_q mu_work_queue;
 static K_KERNEL_STACK_DEFINE(mu_work_stack, CONFIG_MICROUI_EVENT_LOOP_STACK_SIZE);
 #endif /* CONFIG_MICROUI_EVENT_LOOP */
 static volatile mu_process_frame_cb frame_cb;
+
+static __always_inline int tile_local_y(int y)
+{
+	return y - tile_rect.y;
+}
 
 static __always_inline const struct mu_FontGlyph *find_glyph(const struct mu_FontDescriptor *font,
 							     uint32_t codepoint)
@@ -225,7 +231,7 @@ static __always_inline int arc_atan_ratio(int x, int y)
 {
 #ifdef CONFIG_MICROUI_ARC_ATAN_APPROXIMATION
 	/* Fast integer approximation of atan(x/y) scaled to 0-32 range */
-	int val = x * 255 / y; /* 0 - 255 */
+	int val = x * 255 / y;                                       /* 0 - 255 */
 	return val * (770195 - (val - 255) * (val + 941)) / 6137491; /* 0 - 32 */
 #else
 	/* Use math library atan2f for accurate calculation */
@@ -236,7 +242,7 @@ static __always_inline int arc_atan_ratio(int x, int y)
 #define ENABLED_CF_COUNT                                                                           \
 	IS_ENABLED(CONFIG_MICROUI_RENDER_RGB_888) + IS_ENABLED(CONFIG_MICROUI_RENDER_ARGB_8888) +  \
 		IS_ENABLED(CONFIG_MICROUI_RENDER_RGB_565) +                                        \
-		IS_ENABLED(CONFIG_MICROUI_RENDER_RGB_565X) +                                        \
+		IS_ENABLED(CONFIG_MICROUI_RENDER_RGB_565X) +                                       \
 		IS_ENABLED(CONFIG_MICROUI_RENDER_MONO) + IS_ENABLED(CONFIG_MICROUI_RENDER_L_8) +   \
 		IS_ENABLED(CONFIG_MICROUI_RENDER_AL_88)
 
@@ -248,10 +254,10 @@ static __always_inline uint32_t color_to_pixel_rgb888(mu_Color color)
 
 static __always_inline void set_pixel_rgb888(int x, int y, uint32_t pixel)
 {
-	int index = (y * DISPLAY_WIDTH + x) * 3;
-	display_buffer[index + 0] = (pixel >> 16) & 0xFF; // R
-	display_buffer[index + 1] = (pixel >> 8) & 0xFF;  // G
-	display_buffer[index + 2] = pixel & 0xFF;         // B
+	int index = (tile_local_y(y) * TILE_WIDTH + x) * 3;
+	tile_buffer[index + 0] = (pixel >> 16) & 0xFF;
+	tile_buffer[index + 1] = (pixel >> 8) & 0xFF;
+	tile_buffer[index + 2] = pixel & 0xFF;
 }
 #endif
 
@@ -264,8 +270,8 @@ static __always_inline uint32_t color_to_pixel_argb8888(mu_Color color)
 
 static __always_inline void set_pixel_argb8888(int x, int y, uint32_t pixel)
 {
-	int index = (y * DISPLAY_WIDTH + x) * 4;
-	uint32_t *p = (uint32_t *)(display_buffer + index);
+	int index = (tile_local_y(y) * TILE_WIDTH + x) * 4;
+	uint32_t *p = (uint32_t *)(tile_buffer + index);
 #ifdef CONFIG_MICROUI_ALPHA_BLENDING
 	uint8_t src_a = (pixel >> 24) & 0xFF;
 
@@ -309,8 +315,8 @@ static __always_inline uint32_t color_to_pixel_rgb565(mu_Color color)
 
 static __always_inline void set_pixel_rgb565(int x, int y, uint32_t pixel)
 {
-	int index = (y * DISPLAY_WIDTH + x) * 2;
-	uint16_t *p = (uint16_t *)(display_buffer + index);
+	int index = (tile_local_y(y) * TILE_WIDTH + x) * 2;
+	uint16_t *p = (uint16_t *)(tile_buffer + index);
 	*p = (uint16_t)pixel;
 }
 #endif
@@ -324,8 +330,8 @@ static __always_inline uint32_t color_to_pixel_bgr565(mu_Color color)
 
 static __always_inline void set_pixel_bgr565(int x, int y, uint32_t pixel)
 {
-	int index = (y * DISPLAY_WIDTH + x) * 2;
-	uint16_t *p = (uint16_t *)(display_buffer + index);
+	int index = (tile_local_y(y) * TILE_WIDTH + x) * 2;
+	uint16_t *p = (uint16_t *)(tile_buffer + index);
 	*p = (uint16_t)pixel;
 }
 #endif
@@ -341,13 +347,14 @@ static __always_inline void set_pixel_mono(int x, int y, uint32_t pixel)
 {
 	uint8_t *buf;
 	uint8_t bit;
+	int ly = tile_local_y(y);
 
 	if (display_caps.screen_info & SCREEN_INFO_MONO_VTILED) {
-		buf = display_buffer + x + (y >> 3) * DISPLAY_WIDTH;
-		bit = (display_caps.screen_info & SCREEN_INFO_MONO_MSB_FIRST) ? (7 - (y & 7))
-									      : (y & 7);
+		buf = tile_buffer + x + (ly >> 3) * TILE_WIDTH;
+		bit = (display_caps.screen_info & SCREEN_INFO_MONO_MSB_FIRST) ? (7 - (ly & 7))
+									      : (ly & 7);
 	} else {
-		buf = display_buffer + (x >> 3) + y * (DISPLAY_WIDTH >> 3);
+		buf = tile_buffer + (x >> 3) + ly * DIV_ROUND_UP(TILE_WIDTH, 8);
 		bit = (display_caps.screen_info & SCREEN_INFO_MONO_MSB_FIRST) ? (7 - (x & 7))
 									      : (x & 7);
 	}
@@ -368,7 +375,7 @@ static __always_inline uint32_t color_to_pixel_l8(mu_Color color)
 
 static __always_inline void set_pixel_l8(int x, int y, uint32_t pixel)
 {
-	display_buffer[y * DISPLAY_WIDTH + x] = pixel;
+	tile_buffer[tile_local_y(y) * TILE_WIDTH + x] = pixel;
 }
 #endif
 
@@ -380,8 +387,8 @@ static __always_inline uint32_t color_to_pixel_al88(mu_Color color)
 
 static __always_inline void set_pixel_al88(int x, int y, uint32_t pixel)
 {
-	int index = (y * DISPLAY_WIDTH + x) * 2;
-	uint16_t *p = (uint16_t *)(display_buffer + index);
+	int index = (tile_local_y(y) * TILE_WIDTH + x) * 2;
+	uint16_t *p = (uint16_t *)(tile_buffer + index);
 #ifdef CONFIG_MICROUI_ALPHA_BLENDING
 	uint8_t src_a = (pixel >> 8) & 0xFF;
 
@@ -537,6 +544,9 @@ static __always_inline void set_pixel(int x, int y, uint32_t pixel)
 	    y >= clip_rect.y + clip_rect.h) {
 		return;
 	}
+	if (x < 0 || x >= DISPLAY_WIDTH || y < tile_rect.y || y >= tile_rect.y + tile_rect.h) {
+		return;
+	}
 
 	set_pixel_unchecked(x, y, pixel);
 }
@@ -622,7 +632,8 @@ static __always_inline void draw_glyph(const struct mu_FontGlyph *glyph, int x, 
 			}
 		}
 	} else if (font->bitmap_width <= 32) {
-		uint32_t visible_mask = (0xFFFFFFFFu >> start_col) & (0xFFFFFFFFu << (32 - end_col));
+		uint32_t visible_mask =
+			(0xFFFFFFFFu >> start_col) & (0xFFFFFFFFu << (32 - end_col));
 
 		for (int row = start_row; row < end_row; row++) {
 			int screen_y = y + row;
@@ -636,8 +647,8 @@ static __always_inline void draw_glyph(const struct mu_FontGlyph *glyph, int x, 
 		}
 	} else {
 		/* bitmap_width <= 64 */
-		uint64_t visible_mask =
-			(0xFFFFFFFFFFFFFFFFull >> start_col) & (0xFFFFFFFFFFFFFFFFull << (64 - end_col));
+		uint64_t visible_mask = (0xFFFFFFFFFFFFFFFFull >> start_col) &
+					(0xFFFFFFFFFFFFFFFFull << (64 - end_col));
 
 		for (int row = start_row; row < end_row; row++) {
 			int screen_y = y + row;
@@ -662,14 +673,16 @@ static void renderer_init(void)
 	display_get_capabilities(display_dev, &display_caps);
 	display_blanking_off(display_dev);
 
+	memset(tile_buffer, 0, TILE_BUFFER_SIZE);
+
 	clip_rect.x = 0;
 	clip_rect.y = 0;
 	clip_rect.w = DISPLAY_WIDTH;
 	clip_rect.h = DISPLAY_HEIGHT;
+	tile_rect = mu_rect(0, 0, DISPLAY_WIDTH, 0);
 
-	memset(display_buffer, 0, DISPLAY_BUFFER_SIZE);
-
-	LOG_INF("MicroUI renderer initialized for %dx%d display", DISPLAY_WIDTH, DISPLAY_HEIGHT);
+	LOG_INF("MicroUI tiled renderer initialized for %dx%d, tile height=%d, buffer=%u bytes",
+		DISPLAY_WIDTH, DISPLAY_HEIGHT, TILE_HEIGHT, (unsigned int)TILE_BUFFER_SIZE);
 }
 
 static void renderer_draw_rect(mu_Rect rect, mu_Color color)
@@ -679,6 +692,7 @@ static void renderer_draw_rect(mu_Rect rect, mu_Color color)
 	/* Clamp to display bounds (microui already handled clip rect intersection) */
 	mu_Rect display_rect = mu_rect(0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT);
 	rect = intersect_rects(rect, display_rect);
+	rect = intersect_rects(rect, clip_rect);
 
 	if (rect.w == 0 || rect.h == 0) {
 		return;
@@ -716,13 +730,13 @@ static void renderer_draw_rect(mu_Rect rect, mu_Color color)
 	}
 
 	/* Calculate source and destination pointers for memcpy */
-	uint8_t *src_row =
-		display_buffer + (rect.y * DISPLAY_STRIDE) + (rect.x * DISPLAY_BYTES_PER_PIXEL);
+	uint8_t *src_row = tile_buffer + (tile_local_y(rect.y) * TILE_ROW_BYTES) +
+			   (rect.x * DISPLAY_BYTES_PER_PIXEL);
 	int row_bytes = rect.w * DISPLAY_BYTES_PER_PIXEL;
 
 	/* Copy first row to subsequent rows */
 	for (int y = 1; y < rect.h; y++) {
-		uint8_t *dst_row = src_row + (y * DISPLAY_STRIDE);
+		uint8_t *dst_row = src_row + (y * TILE_ROW_BYTES);
 		memcpy(dst_row, src_row, row_bytes);
 	}
 }
@@ -752,7 +766,7 @@ static void renderer_draw_text(mu_Font f, const char *text, mu_Vec2 pos, mu_Colo
 
 #ifdef CONFIG_MICROUI_FONT_KERNING
 		if (has_prev_codepoint) {
-			x += find_kerning_adjustment(font, prev_codepoint, codepoint);;
+			x += find_kerning_adjustment(font, prev_codepoint, codepoint);
 		}
 		has_prev_codepoint = true;
 		prev_codepoint = codepoint;
@@ -863,7 +877,7 @@ static int renderer_get_text_width(mu_Font f, const char *text, int len)
 			}
 			has_prev_codepoint = true;
 			prev_codepoint = codepoint;
-#endif  /* CONFIG_MICROUI_TEXT_WIDTH_CACHE */
+#endif /* CONFIG_MICROUI_TEXT_WIDTH_CACHE */
 		} else {
 			width += font->default_width;
 		}
@@ -871,7 +885,7 @@ static int renderer_get_text_width(mu_Font f, const char *text, int len)
 #ifdef CONFIG_MICROUI_FONT_KERNING
 		has_prev_codepoint = true;
 		prev_codepoint = codepoint;
-#endif  /* CONFIG_MICROUI_TEXT_WIDTH_CACHE */
+#endif /* CONFIG_MICROUI_TEXT_WIDTH_CACHE */
 
 		byte_count += bytes_consumed;
 		current += bytes_consumed;
@@ -899,36 +913,26 @@ static int renderer_get_text_height(mu_Font f)
 
 static void renderer_set_clip_rect(mu_Rect rect)
 {
-	static mu_Rect screen_rect = {0, 0, DISPLAY_WIDTH, DISPLAY_HEIGHT};
-	clip_rect = intersect_rects(rect, screen_rect);
+	clip_rect = intersect_rects(rect, tile_rect);
 }
 
 #ifdef CONFIG_MICROUI_RENDER_CLEAR_BEFORE_DRAW
 static void renderer_clear(mu_Color color)
 {
-	uint32_t pixel = color_to_pixel(color);
-	for (int x = 0; x < DISPLAY_WIDTH; x++) {
-		set_pixel_unchecked(x, 0, pixel);
-	}
-	uint8_t *src_row = display_buffer;
-	int row_bytes = DISPLAY_WIDTH * DISPLAY_BYTES_PER_PIXEL;
-	for (int y = 1; y < DISPLAY_HEIGHT; y++) {
-		uint8_t *dst_row = src_row + (y * DISPLAY_STRIDE);
-		memcpy(dst_row, src_row, row_bytes);
-	}
+	renderer_draw_rect(mu_rect(0, tile_rect.y, TILE_WIDTH, tile_rect.h), color);
 }
 #endif /* CONFIG_MICROUI_RENDER_CLEAR_BEFORE_DRAW */
 
-static void renderer_present(void)
+static void renderer_present_tile(bool frame_incomplete)
 {
-	static struct display_buffer_descriptor desc = {
-		.buf_size = DISPLAY_BUFFER_SIZE,
-		.width = DISPLAY_WIDTH,
-		.height = DISPLAY_HEIGHT,
-		.pitch = DISPLAY_WIDTH,
-		.frame_incomplete = false,
+	struct display_buffer_descriptor desc = {
+		.buf_size = TILE_BUFFER_SIZE,
+		.width = TILE_WIDTH,
+		.height = tile_rect.h,
+		.pitch = TILE_WIDTH,
+		.frame_incomplete = frame_incomplete,
 	};
-	display_write(display_dev, 0, 0, &desc, display_buffer);
+	display_write(display_dev, 0, tile_rect.y, &desc, tile_buffer);
 }
 
 #ifdef CONFIG_MICROUI_DRAW_EXTENSIONS
@@ -1030,31 +1034,38 @@ static void renderer_draw_arc(mu_Vec2 center, int radius, int thickness, mu_Real
 				set_pixel(cx + y, cy + x, pixel);
 			}
 			/* Octant 2: 45° - 90° */
-			if (full || ((ratio > (63 - a_end) && ratio <= (63 - a_start)) ^ inverted)) {
+			if (full ||
+			    ((ratio > (63 - a_end) && ratio <= (63 - a_start)) ^ inverted)) {
 				set_pixel(cx + x, cy + y, pixel);
 			}
 			/* Octant 3: 90° - 135° */
-			if (full || ((ratio >= (a_start - 64) && ratio < (a_end - 64)) ^ inverted)) {
+			if (full ||
+			    ((ratio >= (a_start - 64) && ratio < (a_end - 64)) ^ inverted)) {
 				set_pixel(cx - x, cy + y, pixel);
 			}
 			/* Octant 4: 135° - 180° */
-			if (full || ((ratio > (127 - a_end) && ratio <= (127 - a_start)) ^ inverted)) {
+			if (full ||
+			    ((ratio > (127 - a_end) && ratio <= (127 - a_start)) ^ inverted)) {
 				set_pixel(cx - y, cy + x, pixel);
 			}
 			/* Octant 5: 180° - 225° */
-			if (full || ((ratio >= (a_start - 128) && ratio < (a_end - 128)) ^ inverted)) {
+			if (full ||
+			    ((ratio >= (a_start - 128) && ratio < (a_end - 128)) ^ inverted)) {
 				set_pixel(cx - y, cy - x, pixel);
 			}
 			/* Octant 6: 225° - 270° */
-			if (full || ((ratio > (191 - a_end) && ratio <= (191 - a_start)) ^ inverted)) {
+			if (full ||
+			    ((ratio > (191 - a_end) && ratio <= (191 - a_start)) ^ inverted)) {
 				set_pixel(cx - x, cy - y, pixel);
 			}
 			/* Octant 7: 270° - 315° */
-			if (full || ((ratio >= (a_start - 192) && ratio < (a_end - 192)) ^ inverted)) {
+			if (full ||
+			    ((ratio >= (a_start - 192) && ratio < (a_end - 192)) ^ inverted)) {
 				set_pixel(cx + x, cy - y, pixel);
 			}
 			/* Octant 8: 315° - 360° */
-			if (full || ((ratio > (255 - a_end) && ratio <= (255 - a_start)) ^ inverted)) {
+			if (full ||
+			    ((ratio > (255 - a_end) && ratio <= (255 - a_start)) ^ inverted)) {
 				set_pixel(cx + y, cy - x, pixel);
 			}
 
@@ -1186,11 +1197,9 @@ static void renderer_draw_image(mu_Vec2 pos, mu_Image image)
 			int dst_y = visible.y + row;
 
 			/* Calculate source and destination offsets */
-			const uint8_t *src = img_desc->data +
-					     (src_y * img_desc->stride) +
+			const uint8_t *src = img_desc->data + (src_y * img_desc->stride) +
 					     (src_x_start * DISPLAY_BYTES_PER_PIXEL);
-			uint8_t *dst = display_buffer +
-				       (dst_y * DISPLAY_STRIDE) +
+			uint8_t *dst = tile_buffer + (tile_local_y(dst_y) * TILE_ROW_BYTES) +
 				       (visible.x * DISPLAY_BYTES_PER_PIXEL);
 
 			/* Copy row data */
@@ -1208,7 +1217,8 @@ static void renderer_draw_image(mu_Vec2 pos, mu_Image image)
 				int src_x = src_x_start + col;
 				int dst_x = visible.x + col;
 
-				mu_Color color = pixel_to_color(src_row, src_x, img_desc->pixel_format);
+				mu_Color color =
+					pixel_to_color(src_row, src_x, img_desc->pixel_format);
 				uint32_t pixel = color_to_pixel(color);
 				set_pixel_unchecked(dst_x, dst_y, pixel);
 			}
@@ -1251,8 +1261,8 @@ static void renderer_draw_triangle(mu_Vec2 p0, mu_Vec2 p1, mu_Vec2 p2, mu_Color 
 	int tri_x_min = mu_min(p0.x, mu_min(p1.x, p2.x));
 	int tri_x_max = mu_max(p0.x, mu_max(p1.x, p2.x));
 
-	if (tri_y_max < clip_y_min || tri_y_min > clip_y_max ||
-	    tri_x_max < clip_x_min || tri_x_min > clip_x_max) {
+	if (tri_y_max < clip_y_min || tri_y_min > clip_y_max || tri_x_max < clip_x_min ||
+	    tri_x_min > clip_x_max) {
 		return;
 	}
 
@@ -1326,49 +1336,60 @@ mu_Context *mu_get_context(void)
 
 void mu_render(void)
 {
+	for (int tile_y = 0; tile_y < DISPLAY_HEIGHT; tile_y += TILE_HEIGHT) {
+		int tile_h = MIN(TILE_HEIGHT, DISPLAY_HEIGHT - tile_y);
+		tile_rect = mu_rect(0, tile_y, DISPLAY_WIDTH, tile_h);
+		clip_rect = tile_rect;
+
+		memset(tile_buffer, 0, TILE_BUFFER_SIZE);
 #ifdef CONFIG_MICROUI_RENDER_CLEAR_BEFORE_DRAW
-	renderer_clear(bg_color);
+		renderer_clear(bg_color);
 #endif /* CONFIG_MICROUI_RENDER_CLEAR_BEFORE_DRAW */
-	mu_Command *cmd = NULL;
-	while (mu_next_command(&mu_ctx, &cmd)) {
-		switch (cmd->type) {
-		case MU_COMMAND_TEXT:
-			renderer_draw_text(cmd->text.font, cmd->text.str, cmd->text.pos,
-					   cmd->text.color);
-			break;
-		case MU_COMMAND_RECT:
-			renderer_draw_rect(cmd->rect.rect, cmd->rect.color);
-			break;
-		case MU_COMMAND_ICON:
-			renderer_draw_icon(cmd->icon.id, cmd->icon.rect, cmd->icon.color);
-			break;
-		case MU_COMMAND_CLIP:
-			renderer_set_clip_rect(cmd->clip.rect);
-			break;
+
+		mu_Command *cmd = NULL;
+		while (mu_next_command(&mu_ctx, &cmd)) {
+			switch (cmd->type) {
+			case MU_COMMAND_TEXT:
+				renderer_draw_text(cmd->text.font, cmd->text.str, cmd->text.pos,
+						   cmd->text.color);
+				break;
+			case MU_COMMAND_RECT:
+				renderer_draw_rect(cmd->rect.rect, cmd->rect.color);
+				break;
+			case MU_COMMAND_ICON:
+				renderer_draw_icon(cmd->icon.id, cmd->icon.rect, cmd->icon.color);
+				break;
+			case MU_COMMAND_CLIP:
+				renderer_set_clip_rect(cmd->clip.rect);
+				break;
 #ifdef CONFIG_MICROUI_DRAW_EXTENSIONS
-		case MU_COMMAND_ARC:
-			renderer_draw_arc(cmd->arc.center, cmd->arc.radius, cmd->arc.thickness,
-					  cmd->arc.start_angle, cmd->arc.end_angle, cmd->arc.color);
-			break;
-		case MU_COMMAND_CIRCLE:
-			renderer_draw_circle(cmd->circle.center, cmd->circle.radius,
-					     cmd->circle.color);
-			break;
-		case MU_COMMAND_LINE:
-			renderer_draw_line(cmd->line.p0, cmd->line.p1, cmd->line.thickness,
-					   cmd->line.color);
-			break;
-		case MU_COMMAND_IMAGE:
-			renderer_draw_image(cmd->image.pos, cmd->image.image);
-			break;
-		case MU_COMMAND_TRIANGLE:
-			renderer_draw_triangle(cmd->triangle.p0, cmd->triangle.p1,
-					       cmd->triangle.p2, cmd->triangle.color);
-			break;
+			case MU_COMMAND_ARC:
+				renderer_draw_arc(cmd->arc.center, cmd->arc.radius,
+						  cmd->arc.thickness, cmd->arc.start_angle,
+						  cmd->arc.end_angle, cmd->arc.color);
+				break;
+			case MU_COMMAND_CIRCLE:
+				renderer_draw_circle(cmd->circle.center, cmd->circle.radius,
+						     cmd->circle.color);
+				break;
+			case MU_COMMAND_LINE:
+				renderer_draw_line(cmd->line.p0, cmd->line.p1, cmd->line.thickness,
+						   cmd->line.color);
+				break;
+			case MU_COMMAND_IMAGE:
+				renderer_draw_image(cmd->image.pos, cmd->image.image);
+				break;
+			case MU_COMMAND_TRIANGLE:
+				renderer_draw_triangle(cmd->triangle.p0, cmd->triangle.p1,
+						       cmd->triangle.p2, cmd->triangle.color);
+				break;
 #endif
+			}
 		}
+
+		bool last_tile = (tile_y + tile_h) >= DISPLAY_HEIGHT;
+		renderer_present_tile(!last_tile);
 	}
-	renderer_present();
 }
 
 bool mu_needs_redraw(void)
